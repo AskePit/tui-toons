@@ -23,8 +23,54 @@ function getGraySymbol(intensity) {
     return symbols[index]
 }
 
-const WIDTH = 190
-const HEIGHT = 70
+let tui = document.getElementById("tui")
+let tuiHead = document.getElementById("tui-head")
+
+const WIDTH = 150
+const HEIGHT = 80
+const FILL_SYMBOL = 'x'
+const CURSOR_SYMBOL = '█'
+
+function computeSizes(char) {
+    var tuiStyle = window.getComputedStyle(tui)
+    const height = parseFloat(tuiStyle.lineHeight)
+    let prevWidth = 0
+    let width = 0
+
+    tui.style.fontSize = height + 'px';
+
+    const STEP = 0.1
+
+    while (width < height) {
+        const span = document.createElement("span");
+        span.style.fontFamily = tuiStyle.fontFamily;
+        span.style.fontSize = tui.style.fontSize;
+        span.style.whiteSpace = "nowrap";
+        span.style.visibility = "hidden";
+        span.textContent = char;
+    
+        document.body.appendChild(span);
+        const rect = span.getBoundingClientRect();
+
+        prevWidth = width
+        width = rect.width
+        
+        document.body.removeChild(span);
+
+        tui.style.fontSize = (parseFloat(tui.style.fontSize) + STEP) + 'px'
+    }
+
+    if (Math.abs(prevWidth - height) < Math.abs(width - height)) {
+        width = prevWidth
+        tui.style.fontSize = (parseFloat(tui.style.fontSize) - STEP) + 'px'
+    }
+
+    tui.style.width = (width * WIDTH + 10) + 'px'
+    tuiHead.style.width = (width * WIDTH + 10) + 'px'
+    tui.style.height = (height * HEIGHT + 10) + 'px'
+}
+
+computeSizes(FILL_SYMBOL)
 
 class Rules {
     birthRule
@@ -46,7 +92,21 @@ const DIAMOEBA = new Rules([3, 5, 6, 7, 8], [5, 6, 7, 8], 51, false)
 const DAY_AND_NIGHT = new Rules([3, 6, 7, 8], [3, 4, 6, 7, 8], 50, true)
 const ANNEAL = new Rules([4, 6, 7, 8], [3, 5, 6, 7, 8], 48, true)
 
-const RULES = DIAMOEBA
+const rulesArray = [INEVITABLE_EXPANSION, DIAMOEBA, DAY_AND_NIGHT];
+const randomRulesIndex = Math.floor(Math.random() * rulesArray.length)
+const RULES = rulesArray[randomRulesIndex];
+
+if (RULES == GAME_OF_LIFE) {
+    tuiHead.innerText += " GAME OF LIFE"
+} else if (RULES == INEVITABLE_EXPANSION) {
+    tuiHead.innerText += " INEVITABLE EXPANSION"
+} else if (RULES == DIAMOEBA) {
+    tuiHead.innerText += " SWAMP DROWNING"
+} else if (RULES == DAY_AND_NIGHT) {
+    tuiHead.innerText += " CONTINENTS BIRTH"
+} else if (RULES == ANNEAL) {
+    tuiHead.innerText += " ANNEAL"
+}
 
 function update(old)
 {
@@ -90,7 +150,6 @@ for (let r = 0; r < HEIGHT; ++r) {
     }
 }
 
-let tui = document.getElementById("tui")
 let builder = new StringBuilder()
 
 setInterval(() => {
@@ -98,14 +157,22 @@ setInterval(() => {
     builder.clear()
     world = update(world)
 
-    console.log(world)
-
     for (let r = 0; r<HEIGHT; ++r) {
         for (let c = 0; c<WIDTH; ++c) {
-            builder.append((world[r][c]) ? 'x' : '&nbsp')
+            builder.append((world[r][c]) ? FILL_SYMBOL : '&nbsp')
         }
         builder.append('<br>')
     }
     
     tui.innerHTML = builder.toString()
 }, 200);
+
+cursorState = false
+setInterval(() => {
+    if (cursorState) {
+        tuiHead.innerText = tuiHead.innerText.slice(0, -1);
+    } else {
+        tuiHead.innerText += CURSOR_SYMBOL;
+    }
+    cursorState = !cursorState
+}, 600);
