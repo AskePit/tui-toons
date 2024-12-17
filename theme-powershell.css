@@ -1,0 +1,16 @@
+#tui, #tui-head, #host-line::after {
+    color: #F2F2F2;
+    background-color: #012456;
+    font-family: monospace;
+    font-size: 14px;
+    font-weight: 400;
+}
+
+#host-line {
+    color: #8AE234;
+    font-weight: 400;
+}
+
+#host-line::after {
+    content: ">";
+}

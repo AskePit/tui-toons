@@ -113,23 +113,23 @@ const randomRulesIndex = Math.floor(Math.random() * rulesArray.length)
 const RULES = DEBUG_TEST_RULE ? TEST_RULE : rulesArray[randomRulesIndex];
 
 if (RULES == TEST_RULE) {
-    tuiHead.innerText += " TEST"
+    tuiHead.innerHTML += " TEST"
 } else if (RULES == GAME_OF_LIFE) {
-    tuiHead.innerText += " GAME OF LIFE"
+    tuiHead.innerHTML += " GAME OF LIFE"
 } else if (RULES == INEVITABLE_EXPANSION) {
-    tuiHead.innerText += " INEVITABLE EXPANSION"
+    tuiHead.innerHTML += " INEVITABLE EXPANSION"
 } else if (RULES == DIAMOEBA) {
-    tuiHead.innerText += " SWAMP DROWNING"
+    tuiHead.innerHTML += " SWAMP DROWNING"
 } else if (RULES == DAY_AND_NIGHT) {
-    tuiHead.innerText += " CONTINENTS BIRTH"
+    tuiHead.innerHTML += " CONTINENTS BIRTH"
 } else if (RULES == ANNEAL) {
-    tuiHead.innerText += " ANNEAL"
+    tuiHead.innerHTML += " ANNEAL"
 } else if (RULES == LAVA) {
-    tuiHead.innerText += " LAVA"
+    tuiHead.innerHTML += " LAVA"
 } else if (RULES == CRYSTAL_MAZE) {
-    tuiHead.innerText += " CRYSTAL MAZE"
+    tuiHead.innerHTML += " CRYSTAL MAZE"
 } else if (RULES == AI_CORRUPTION) {
-    tuiHead.innerText += " AI CORRUPTION"
+    tuiHead.innerHTML += " AI CORRUPTION"
 }
 
 function update(old)
@@ -210,9 +210,18 @@ setInterval(() => {
 cursorState = false
 setInterval(() => {
     if (cursorState) {
-        tuiHead.innerText = tuiHead.innerText.slice(0, -1);
+        tuiHead.innerHTML = tuiHead.innerHTML.slice(0, -1);
     } else {
-        tuiHead.innerText += CURSOR_SYMBOL;
+        tuiHead.innerHTML += CURSOR_SYMBOL;
     }
     cursorState = !cursorState
 }, 600);
+
+// const THEMES = [
+//     '../theme-cmd.css',
+//     '../theme-gitbash.css',
+//     '../theme-powershell.css',
+//     '../theme-ubuntu.css',
+// ]
+
+// document.getElementById('theme').href = THEMES[Math.floor(Math.random() * THEMES.length)]

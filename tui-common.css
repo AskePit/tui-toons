@@ -14,9 +14,6 @@ body {
 #tui, #tui-head {
     padding: 10px;
 
-    color: #eee;
-    background-color: #222;
-    font-family: monospace;
     line-height: 8px;
     width: auto;
 }

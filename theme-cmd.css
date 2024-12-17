@@ -1,0 +1,15 @@
+#tui, #tui-head, #host-line::after {
+    color: #CCCCCC;
+    background-color: #0C0C0C;
+    font-family: monospace;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+#host-line, #host-line::after {
+    color: #eee;
+}
+
+#host-line::after {
+    content: ">";
+}
