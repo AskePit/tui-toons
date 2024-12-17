@@ -119,7 +119,7 @@ setInterval(() => {
 
     for (let r = 0; r<HEIGHT; ++r) {
         for (let c = 0; c<WIDTH; ++c) {
-            builder.append((world[r][c]) ? FILL_SYMBOL : '&nbsp')
+            builder.append((world[r][c]) ? FILL_SYMBOL : '&nbsp;')
         }
         builder.append('<br>')
     }

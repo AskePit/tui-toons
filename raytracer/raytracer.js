@@ -66,7 +66,7 @@ class Vec3 {
         return Math.sqrt(this.length_squared())
     }
 
-    make_unit() {
+    normalize() {
         this.div(this.length())
         return this
     }
@@ -203,6 +203,23 @@ class HitableList extends Hitable {
     }
 }
 
+class Camera {
+    viewportWidth // float
+    viewportHeight // float
+    focus // float
+
+    constructor() {
+        this.viewportWidth = 4
+        this.viewportHeight = 2
+        this.focus = -1
+    }
+
+    getRay(u, v) {
+        const direction = new Vec3(u*this.viewportWidth - this.viewportWidth/2, v*this.viewportHeight - this.viewportHeight/2, this.focus)
+        return new Ray(new Vec3(0, 0, 0), direction)
+    }
+}
+
 // r: Ray
 // world: HitableList
 // return Vec3
@@ -213,9 +230,9 @@ function color(r, world) {
     if (hit) {
         return (new Vec3(hit.normal.x+1, hit.normal.y+1, hit.normal.z+1)).mul(0.5)
     } else {
-        const unitDirection = r.direction.make_unit()
+        const unitDirection = r.direction.normalize()
         t = 0.5*(unitDirection.y + 1.0)
-        const BACKGROUND_LIGHT = 1
+        const BACKGROUND_LIGHT = 0
         const BACKGROUND_DARK = 0
         return new Vec3(BACKGROUND_LIGHT, BACKGROUND_LIGHT, BACKGROUND_LIGHT).mul(1 - t).add(new Vec3(BACKGROUND_DARK, BACKGROUND_DARK, BACKGROUND_DARK).mul(t))
     }
@@ -234,25 +251,29 @@ const world = new HitableList([
     new Sphere(new Vec3(0.3, 0.3, -0.7), 0.18)
 ])
 
+const camera = new Camera()
+
 let builder = new StringBuilder()
 
 for(let row = 0; row<HEIGHT; ++row) {
     for(let col = 0; col<WIDTH; ++col) {
-        const u = col / WIDTH
-        const v = row / HEIGHT
+        let c = new Vec3(0, 0, 0)
+        const NS = 100
+        for(let s = 0; s<NS; ++s) {
+            const u = (col + Math.random()) / WIDTH
+            const v = (row + Math.random()) / HEIGHT
 
-        const direction = lowerLeftCorner.clone().add(horizontal.clone().mul(u)).add(vertical.clone().mul(v))
-        const ray = new Ray(origin, direction)
-        
-        const p = ray.pointAt(2)
-        const c = color(ray, world)
+            const ray = camera.getRay(u, v)
+            c.add(color(ray, world))
+        }
+        c.div(NS)
 
         const r = 100*c.x
         const g = 100*c.y
         const b = 100*c.z
         const avg = (r + g + b) / 3
 
-        builder.append(getGraySymbol(INVERT_COLORS ? 100-avg : avg))
+        builder.append(getGraySymbolHtml(INVERT_COLORS ? 100-avg : avg))
     }
     builder.append('<br>')
 }

@@ -1,4 +1,4 @@
-const WIDTH = 150
+const WIDTH = 160
 const HEIGHT = 80
 
 const FILL_SYMBOL = 'x'
@@ -38,6 +38,11 @@ function getGraySymbol(intensity) {
     const symbols = " ·:;znkW"
     const index = Math.round(intensity * (symbols.length - 1) / 100)
     return symbols[index]
+}
+
+function getGraySymbolHtml(intensity) {
+    const s = getGraySymbol(intensity)
+    return s == ' ' ? '&nbsp;' : s
 }
 
 function computeSizes(char) {
