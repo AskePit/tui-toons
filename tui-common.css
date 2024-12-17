@@ -17,3 +17,7 @@ body {
     line-height: 8px;
     width: auto;
 }
+
+#tui {
+    padding: 0px 10px;
+}

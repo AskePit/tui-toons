@@ -4,23 +4,25 @@ function getRandomInt(min, max) {
     return Math.floor(Math.random() * (max - min + 1)) + min;
 }
 
-function StringBuilder(value) {
-    this.strings = new Array()
-    this.append(value)
-}
-
-StringBuilder.prototype.append = function (value) {
-    if (value) {
-        this.strings.push(value)
+class StringBuilder {
+    constructor(value) {
+        this.strings = new Array()
+        this.append(value)
     }
-}
 
-StringBuilder.prototype.clear = function () {
-    this.strings.length = 0
-}
+    append(value) {
+        if (value) {
+            this.strings.push(value)
+        }
+    }
 
-StringBuilder.prototype.toString = function () {
-    return this.strings.join("")
+    clear() {
+        this.strings.length = 0
+    }
+
+    toString() {
+        return this.strings.join("")
+    }
 }
 
 function getGraySymbol(intensity) {
@@ -115,21 +117,21 @@ const RULES = DEBUG_TEST_RULE ? TEST_RULE : rulesArray[randomRulesIndex];
 if (RULES == TEST_RULE) {
     tuiHead.innerHTML += " TEST"
 } else if (RULES == GAME_OF_LIFE) {
-    tuiHead.innerHTML += " GAME OF LIFE"
+    tuiHead.innerHTML += " GAME_OF_LIFE"
 } else if (RULES == INEVITABLE_EXPANSION) {
-    tuiHead.innerHTML += " INEVITABLE EXPANSION"
+    tuiHead.innerHTML += " INEVITABLE_EXPANSION"
 } else if (RULES == DIAMOEBA) {
-    tuiHead.innerHTML += " SWAMP DROWNING"
+    tuiHead.innerHTML += " SWAMP_DROWNING"
 } else if (RULES == DAY_AND_NIGHT) {
-    tuiHead.innerHTML += " CONTINENTS BIRTH"
+    tuiHead.innerHTML += " CONTINENTS_BIRTH"
 } else if (RULES == ANNEAL) {
     tuiHead.innerHTML += " ANNEAL"
 } else if (RULES == LAVA) {
     tuiHead.innerHTML += " LAVA"
 } else if (RULES == CRYSTAL_MAZE) {
-    tuiHead.innerHTML += " CRYSTAL MAZE"
+    tuiHead.innerHTML += " CRYSTAL_MAZE"
 } else if (RULES == AI_CORRUPTION) {
-    tuiHead.innerHTML += " AI CORRUPTION"
+    tuiHead.innerHTML += " AI_CORRUPTION"
 }
 
 function update(old)
