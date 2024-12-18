@@ -526,7 +526,12 @@ function color(r, world) {
         t = 0.5*(unitDirection.y + 1.0)
         const BACKGROUND_LIGHT = 0
         const BACKGROUND_DARK = 0
-        return new Vec3(BACKGROUND_LIGHT, BACKGROUND_LIGHT, BACKGROUND_LIGHT).mul(1 - t).add(new Vec3(BACKGROUND_DARK, BACKGROUND_DARK, BACKGROUND_DARK).mul(t))
+        if (BACKGROUND_LIGHT == BACKGROUND_DARK) {
+            return new Vec3(BACKGROUND_LIGHT, BACKGROUND_LIGHT, BACKGROUND_LIGHT)
+        } else {
+            return new Vec3(BACKGROUND_LIGHT, BACKGROUND_LIGHT, BACKGROUND_LIGHT).mul(1 - t).add(new Vec3(BACKGROUND_DARK, BACKGROUND_DARK, BACKGROUND_DARK).mul(t))
+        }
+        
     }
 }
 
@@ -551,6 +556,8 @@ function render() {
 
     for(let row = 0; row<HEIGHT; ++row) {
         for(let col = 0; col<WIDTH; ++col) {
+            // NOTE: Too expensive!
+            //
             // let c = new Vec3(0, 0, 0)
             // const NS = 10
             // for(let s = 0; s<NS; ++s) {
@@ -570,6 +577,7 @@ function render() {
             const r = 100*c.x
             const g = 100*c.y
             const b = 100*c.z
+            //const avg = 29.9*c.x + 58.7*c.y + 11.4*c.z
             const avg = (r + g + b) / 3
     
             builder.append(getGraySymbolHtml(INVERT_COLORS ? 100-avg : avg))
