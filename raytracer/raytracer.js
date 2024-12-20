@@ -208,49 +208,95 @@ class Matrix4x4 {
         return this
     }
 
-    rotateAround(axis, angle) {
-        const { x, y, z } = axis.normalize() // Ensure the axis is a unit vector
-        const c = Math.cos(angle)
-        const s = Math.sin(angle)
-        const t = 1 - c
+    // rotateAround(axis, angle) {
+    //     const { x, y, z } = axis.normalize() // Ensure the axis is a unit vector
+    //     const c = Math.cos(angle)
+    //     const s = Math.sin(angle)
+    //     const t = 1 - c
     
-        // Rotation matrix components
-        const m00 = t * x * x + c
-        const m01 = t * x * y - s * z
-        const m02 = t * x * z + s * y
-        const m10 = t * x * y + s * z
-        const m11 = t * y * y + c
-        const m12 = t * y * z - s * x
-        const m20 = t * x * z - s * y
-        const m21 = t * y * z + s * x
-        const m22 = t * z * z + c
+    //     // Rotation matrix components
+    //     const m00 = t * x * x + c
+    //     const m01 = t * x * y - s * z
+    //     const m02 = t * x * z + s * y
+    //     const m10 = t * x * y + s * z
+    //     const m11 = t * y * y + c
+    //     const m12 = t * y * z - s * x
+    //     const m20 = t * x * z - s * y
+    //     const m21 = t * y * z + s * x
+    //     const m22 = t * z * z + c
     
-        const rotationMatrix = new Matrix4x4()
-        const e = rotationMatrix.elements
+    //     const rotationMatrix = new Matrix4x4()
+    //     const e = rotationMatrix.elements
     
-        // Fill the rotation matrix
-        e[0] = m00
-        e[1] = m01
-        e[2] = m02
-        e[3] = 0
+    //     // Fill the rotation matrix
+    //     e[0] = m00
+    //     e[1] = m01
+    //     e[2] = m02
+    //     e[3] = 0
     
-        e[4] = m10
-        e[5] = m11
-        e[6] = m12
-        e[7] = 0
+    //     e[4] = m10
+    //     e[5] = m11
+    //     e[6] = m12
+    //     e[7] = 0
     
-        e[8] = m20
-        e[9] = m21
-        e[10] = m22
-        e[11] = 0
+    //     e[8] = m20
+    //     e[9] = m21
+    //     e[10] = m22
+    //     e[11] = 0
     
-        e[12] = 0
-        e[13] = 0
-        e[14] = 0
-        e[15] = 1
+    //     e[12] = 0
+    //     e[13] = 0
+    //     e[14] = 0
+    //     e[15] = 1
     
-        // Multiply the current matrix by the rotation matrix
-        this.multiply(rotationMatrix)
+    //     // Multiply the current matrix by the rotation matrix
+    //     this.multiply(rotationMatrix)
+    //     return this
+    // }
+
+    // axis: normalized Vec3
+    // angle: float
+    #setRotationAround(axis, angle) {
+        const x = axis.x, y = axis.y, z = axis.z
+        const c = Math.cos(angle), s = Math.sin(angle), t = 1 - c
+    
+        // Set up the rotation matrix
+        this.elements.set([
+            t * x * x + c,      t * x * y - s * z,  t * x * z + s * y,  0,
+            t * y * x + s * z,  t * y * y + c,      t * y * z - s * x,  0,
+            t * z * x - s * y,  t * z * y + s * x,  t * z * z + c,      0,
+            0,                  0,                  0,                  1
+        ])
+    
+        return this
+    }
+
+    // axis: normalized Vec3
+    // angle: float
+    rotateAroundWorldAxis(axis, angle) {
+        // Create a rotation matrix around the world axis
+        const rotation = new Matrix4x4().#setRotationAround(axis, angle)
+        this.multiply(rotation)
+    
+        return this
+    }
+
+    // axis: normalized Vec3
+    // angle: float
+    rotateAroundLocalAxis(axis, angle) {
+        const e = this.elements
+
+        // Transform the local axis into world space
+        const localAxis = new Vec3(
+            axis.x * e[0] + axis.y * e[4] + axis.z * e[8],
+            axis.x * e[1] + axis.y * e[5] + axis.z * e[9],
+            axis.x * e[2] + axis.y * e[6] + axis.z * e[10]
+        ).normalize()
+    
+        // Create a rotation matrix around the transformed local axis
+        const rotation = new Matrix4x4().#setRotationAround(localAxis, angle)
+        this.multiply(rotation)
+    
         return this
     }
 
@@ -512,26 +558,45 @@ class Camera {
     }
 }
 
+// return Vec3
+function randomInUnitSphere() {
+    let p = new Vec3(0, 0, 0)
+
+    do {
+        p = (new Vec3(Math.random(), Math.random(), Math.random())).mul(2).sub(new Vec3(1, 1, 1))
+    } while(p.lengthSquared() >= 1)
+
+    return p
+}
+
+NORMALS = 0
+DIFFUSE = 1
+RENDER_MODE = DIFFUSE
+
 // r: Ray
 // world: HitableList
 // return Vec3
 function color(r, world) {
     const MAXFLOAT = 999999999999999;
-    let hit = world.hit(r, 0.0, MAXFLOAT)
+    let hit = world.hit(r, 0.001, MAXFLOAT)
 
     if (hit) {
-        return (new Vec3(hit.normal.x+1, hit.normal.y+1, hit.normal.z+1)).mul(0.5)
+        if (RENDER_MODE == NORMALS) {
+            return (new Vec3(hit.normal.x+1, hit.normal.y+1, hit.normal.z+1)).mul(0.5)
+        } else if (RENDER_MODE == DIFFUSE) {
+            const target = hit.p.clone().add(hit.normal).add(randomInUnitSphere())
+            return color(new Ray(hit.p, target.sub(hit.p)), world).mul(0.5)
+        }
     } else {
         const unitDirection = r.direction.normalize()
         t = 0.5*(unitDirection.y + 1.0)
-        const BACKGROUND_LIGHT = 0
-        const BACKGROUND_DARK = 0
+        const BACKGROUND_LIGHT = RENDER_MODE == NORMALS ? 0 : 0.75
+        const BACKGROUND_DARK = RENDER_MODE == NORMALS ? 0 : 0
         if (BACKGROUND_LIGHT == BACKGROUND_DARK) {
             return new Vec3(BACKGROUND_LIGHT, BACKGROUND_LIGHT, BACKGROUND_LIGHT)
         } else {
             return new Vec3(BACKGROUND_LIGHT, BACKGROUND_LIGHT, BACKGROUND_LIGHT).mul(1 - t).add(new Vec3(BACKGROUND_DARK, BACKGROUND_DARK, BACKGROUND_DARK).mul(t))
         }
-        
     }
 }
 
@@ -572,7 +637,11 @@ function render() {
             const u = col / WIDTH
             const v = row / HEIGHT
             const ray = camera.getRay(u, v)
-            const c = color(ray, world)
+            let c = color(ray, world)
+
+            if (RENDER_MODE != NORMALS) {
+                c = new Vec3(Math.sqrt(c.x), Math.sqrt(c.y), Math.sqrt(c.z))
+            }
     
             const r = 100*c.x
             const g = 100*c.y
@@ -591,14 +660,14 @@ function render() {
 const UP = new Vec3(0, 1, 0)
 
 const MOUSE_SENSITIVITY = 0.01
+const WHEEL_SENSITIVITY = 0.001
 const KEYBOARD_SENSITIVITY = 0.1
 const KEY_COOLDOWN_MS = 1
-
 
 let lastPressTime = Date.now()
 
 document.onkeydown = (el) => {
-    if (!['w', 's', 'd', 'a', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].some((e) => e == el.key)) {
+    if (!['w', 's', 'd', 'a', 'q', 'e', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].some((e) => e == el.key)) {
         return
     }
 
@@ -616,6 +685,10 @@ document.onkeydown = (el) => {
         camera.transform.moveLeft(KEYBOARD_SENSITIVITY)
     } else if (el.key == 'd') {
         camera.transform.moveRight(KEYBOARD_SENSITIVITY)
+    } else if (el.key == 'q') {
+        camera.transform.moveDown(KEYBOARD_SENSITIVITY)
+    } else if (el.key == 'e') {
+        camera.transform.moveUp(KEYBOARD_SENSITIVITY)
     } else if (el.key == 'ArrowUp') {
         camera.transform.rotateX(-KEYBOARD_SENSITIVITY)
     } else if (el.key == 'ArrowDown') {
@@ -628,6 +701,12 @@ document.onkeydown = (el) => {
 
     render()
     lastPressTime = time
+}
+
+tui.onwheel = (el) => {
+    camera.focus += el.deltaY * WHEEL_SENSITIVITY
+    console.log(el.deltaY)
+    render()
 }
 
 let rotateCamera = false
@@ -644,7 +723,7 @@ tui.onmousemove = (el) => {
     if (!rotateCamera) {
         return
     }
-    camera.transform.rotateAround(UP, el.movementX * MOUSE_SENSITIVITY)
+    camera.transform.rotateAroundWorldAxis(UP, el.movementX * MOUSE_SENSITIVITY)
     camera.transform.rotateX(el.movementY * MOUSE_SENSITIVITY)
     render()
 }
