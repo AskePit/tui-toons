@@ -1,447 +1,64 @@
-// x: float
-// y: float
-// z: float
-class Vec3 {
-    x // float
-    y // float
-    z // float
-
-    constructor(x, y, z) {
-        this.x = x
-        this.y = y
-        this.z = z
-    }
-
-    negate() {
-        this.x = -this.x
-        this.y = -this.y
-        this.z = -this.z
-
-        return this
-    }
-
-    at(i) {
-        if (i == 0) {return x}
-        if (i == 1) {return y}
-        if (i == 2) {return y}
-    }
-
-    add(other) {
-        this.x += other.x
-        this.y += other.y
-        this.z += other.z
-
-        return this
-    }
-
-    sub(other) {
-        this.x -= other.x
-        this.y -= other.y
-        this.z -= other.z
-
-        return this
-    }
-
-    mul(coef) {
-        this.x *= coef
-        this.y *= coef
-        this.z *= coef
-
-        return this
-    }
-
-    div(coef) {
-        this.x /= coef
-        this.y /= coef
-        this.z /= coef
-
-        return this
-    }
-
-    lengthSquared() {
-        return this.x*this.x + this.y*this.y + this.z*this.z
-    }
-
-    length() {
-        return Math.sqrt(this.lengthSquared())
-    }
-
-    normalize() {
-        this.div(this.length())
-        return this
-    }
-
-    clone() {
-        return new Vec3(this.x, this.y, this.z)
+class Material {
+    // inRay: Ray
+    // hit: HitRecord
+    // return [attenuation: Vec3, scattered: Ray]
+    scatter(inRay, hit) {
+        return [0, null]
     }
 }
 
-// v1: Vec3
-// v2: Vec3
-// return float
-function dot(v1, v2) {
-    return v1.x*v2.x + v1.y*v2.y + v1.z*v2.z
-}
-
-// v1: Vec3
-// v2: Vec3
 // return Vec3
-function cross(v1, v2) {
-    return new Vec3(
-        v1.y*v2.z - v1.z*v2.y,
-       -v1.x*v2.z - v1.z*v2.x,
-        v1.x*v2.y - v1.y*v2.x
-    )
+function randomInUnitSphere() {
+    let p = new Vec3(0, 0, 0)
+
+    do {
+        p = (new Vec3(Math.random(), Math.random(), Math.random())).mul(2).sub(new Vec3(1, 1, 1))
+    } while(p.lengthSquared() >= 1)
+
+    return p
 }
 
-class Ray {
-    origin // Vec3
-    direction // Vec3
+class Lambertian extends Material {
+    albedo // Vec3
 
-    constructor(origin, direction) {
-        this.origin = origin
-        this.direction = direction
+    constructor(albedo) {
+        super()
+        this.albedo = albedo
     }
 
-    // return Vec3
-    pointAt(t) {
-        return this.origin.clone().add(this.direction.clone().mul(t))
+    // inRay: Ray
+    // hit: HitRecord
+    // return [attenuation: Vec3, scattered: Ray]
+    scatter(inRay, hit) {
+        const target = hit.p.clone().add(hit.normal).add(randomInUnitSphere())
+        const scattered = new Ray(hit.p, target.sub(hit.p))
+        const attenuation = this.albedo
+        return [attenuation, scattered]
     }
 }
 
-class Matrix4x4 {
-    elements // Float32Array(16)
+// v: Vec3
+// n: Vec3
+function reflect(v, n) {
+    return v.clone().sub(n.clone().mul(2*dot(v, n)))
+}
 
-    constructor() {
-        this.elements = new Float32Array(16)
-        this.identity()
+class Metal extends Material {
+    albedo // Vec3
+
+    constructor(albedo) {
+        super()
+        this.albedo = albedo
     }
 
-    identity() {
-        const e = this.elements
-        e.fill(0)
-        e[0] = e[5] = e[10] = e[15] = 1
-        return this
-    }
-
-    // v: Vec3
-    translate(v) {
-        const e = this.elements
-        e[12] += v.x
-        e[13] += v.y
-        e[14] += v.z
-        return this
-    }
-
-    // s: float
-    scale(s) {
-        const e = this.elements
-        e[0] *= s
-        e[5] *= s
-        e[10] *= s
-        return this
-    }
-
-    // angle: float
-    rotateX(angle) {
-        const e = this.elements
-        const c = Math.cos(angle)
-        const s = Math.sin(angle)
-
-        const m10 = e[4], m11 = e[5], m12 = e[6], m13 = e[7]
-        const m20 = e[8], m21 = e[9], m22 = e[10], m23 = e[11]
-
-        e[4] = c * m10 + s * m20
-        e[5] = c * m11 + s * m21
-        e[6] = c * m12 + s * m22
-        e[7] = c * m13 + s * m23
-
-        e[8] = c * m20 - s * m10
-        e[9] = c * m21 - s * m11
-        e[10] = c * m22 - s * m12
-        e[11] = c * m23 - s * m13
-
-        return this
-    }
-
-    // angle: float
-    rotateY(angle) {
-        const e = this.elements
-        const c = Math.cos(angle)
-        const s = Math.sin(angle)
-
-        const m00 = e[0], m01 = e[1], m02 = e[2], m03 = e[3]
-        const m20 = e[8], m21 = e[9], m22 = e[10], m23 = e[11]
-
-        e[0] = c * m00 - s * m20
-        e[1] = c * m01 - s * m21
-        e[2] = c * m02 - s * m22
-        e[3] = c * m03 - s * m23
-
-        e[8] = c * m20 + s * m00
-        e[9] = c * m21 + s * m01
-        e[10] = c * m22 + s * m02
-        e[11] = c * m23 + s * m03
-
-        return this
-    }
-
-    // angle: float
-    rotateZ(angle) {
-        const e = this.elements
-        const c = Math.cos(angle)
-        const s = Math.sin(angle)
-
-        const m00 = e[0], m01 = e[1], m02 = e[2], m03 = e[3]
-        const m10 = e[4], m11 = e[5], m12 = e[6], m13 = e[7]
-
-        e[0] = c * m00 + s * m10
-        e[1] = c * m01 + s * m11
-        e[2] = c * m02 + s * m12
-        e[3] = c * m03 + s * m13
-
-        e[4] = c * m10 - s * m00
-        e[5] = c * m11 - s * m01
-        e[6] = c * m12 - s * m02
-        e[7] = c * m13 - s * m03
-
-        return this
-    }
-
-    // rotateAround(axis, angle) {
-    //     const { x, y, z } = axis.normalize() // Ensure the axis is a unit vector
-    //     const c = Math.cos(angle)
-    //     const s = Math.sin(angle)
-    //     const t = 1 - c
-    
-    //     // Rotation matrix components
-    //     const m00 = t * x * x + c
-    //     const m01 = t * x * y - s * z
-    //     const m02 = t * x * z + s * y
-    //     const m10 = t * x * y + s * z
-    //     const m11 = t * y * y + c
-    //     const m12 = t * y * z - s * x
-    //     const m20 = t * x * z - s * y
-    //     const m21 = t * y * z + s * x
-    //     const m22 = t * z * z + c
-    
-    //     const rotationMatrix = new Matrix4x4()
-    //     const e = rotationMatrix.elements
-    
-    //     // Fill the rotation matrix
-    //     e[0] = m00
-    //     e[1] = m01
-    //     e[2] = m02
-    //     e[3] = 0
-    
-    //     e[4] = m10
-    //     e[5] = m11
-    //     e[6] = m12
-    //     e[7] = 0
-    
-    //     e[8] = m20
-    //     e[9] = m21
-    //     e[10] = m22
-    //     e[11] = 0
-    
-    //     e[12] = 0
-    //     e[13] = 0
-    //     e[14] = 0
-    //     e[15] = 1
-    
-    //     // Multiply the current matrix by the rotation matrix
-    //     this.multiply(rotationMatrix)
-    //     return this
-    // }
-
-    // axis: normalized Vec3
-    // angle: float
-    #setRotationAround(axis, angle) {
-        const x = axis.x, y = axis.y, z = axis.z
-        const c = Math.cos(angle), s = Math.sin(angle), t = 1 - c
-    
-        // Set up the rotation matrix
-        this.elements.set([
-            t * x * x + c,      t * x * y - s * z,  t * x * z + s * y,  0,
-            t * y * x + s * z,  t * y * y + c,      t * y * z - s * x,  0,
-            t * z * x - s * y,  t * z * y + s * x,  t * z * z + c,      0,
-            0,                  0,                  0,                  1
-        ])
-    
-        return this
-    }
-
-    // axis: normalized Vec3
-    // angle: float
-    rotateAroundWorldAxis(axis, angle) {
-        // Create a rotation matrix around the world axis
-        const rotation = new Matrix4x4().#setRotationAround(axis, angle)
-        this.multiply(rotation)
-    
-        return this
-    }
-
-    // axis: normalized Vec3
-    // angle: float
-    rotateAroundLocalAxis(axis, angle) {
-        const e = this.elements
-
-        // Transform the local axis into world space
-        const localAxis = new Vec3(
-            axis.x * e[0] + axis.y * e[4] + axis.z * e[8],
-            axis.x * e[1] + axis.y * e[5] + axis.z * e[9],
-            axis.x * e[2] + axis.y * e[6] + axis.z * e[10]
-        ).normalize()
-    
-        // Create a rotation matrix around the transformed local axis
-        const rotation = new Matrix4x4().#setRotationAround(localAxis, angle)
-        this.multiply(rotation)
-    
-        return this
-    }
-
-    moveBackward(step) {
-        const e = this.elements
-    
-        // Extract the local z-axis direction from the matrix
-        const localZ = new Vec3(e[8], e[9], e[10]).normalize()
-    
-        // Calculate the translation vector
-        const translation = localZ.mul(step)
-    
-        // Apply the translation to the current matrix
-        this.translate(translation)
-        return this
-    }
-
-    moveForward(step) {
-        return this.moveBackward(-step)
-    }
-    
-    moveLeft(step) {
-        const e = this.elements
-    
-        // Extract the local X-axis direction from the matrix
-        const localX = new Vec3(e[0], e[1], e[2]).normalize()
-    
-        // Calculate the translation vector
-        const translation = localX.mul(-step) // Negative direction for left
-    
-        // Apply the translation
-        this.translate(translation)
-        return this
-    }
-    
-    moveRight(step) {
-        return this.moveLeft(-step)
-    }
-    
-    moveDown(step) {
-        const e = this.elements
-    
-        // Extract the local Y-axis direction from the matrix
-        const localY = new Vec3(e[4], e[5], e[6]).normalize()
-    
-        // Calculate the translation vector
-        const translation = localY.mul(step) // Positive direction for up
-    
-        // Apply the translation
-        this.translate(translation)
-        return this
-    }
-    
-    moveUp(step) {
-        return this.moveDown(-step)
-    }
-
-    // other: Matrix4z4
-    multiply(other) {
-        const a = this.elements
-        const b = other.elements
-        const result = new Float32Array(16)
-
-        for (let i = 0; i < 4; i++) {
-            for (let j = 0; j < 4; j++) {
-                result[i + j * 4] =
-                    a[i] * b[j * 4] +
-                    a[i + 4] * b[j * 4 + 1] +
-                    a[i + 8] * b[j * 4 + 2] +
-                    a[i + 12] * b[j * 4 + 3]
-            }
-        }
-
-        this.elements = result
-        return this
-    }
-
-    // vec: Vec3 as a point
-    // return Vec3
-    applyToPoint(point) {
-        const e = this.elements
-        const x = point.x, y = point.y, z = point.z
-    
-        return new Vec3(
-            e[0] * x + e[4] * y + e[8] * z + e[12],
-            e[1] * x + e[5] * y + e[9] * z + e[13],
-            e[2] * x + e[6] * y + e[10] * z + e[14]
-        )
-    }
-    
-    // vec: Vec3 as a vector/direction
-    // return Vec3
-    applyToVector(vec) {
-        const e = this.elements
-        const x = vec.x, y = vec.y, z = vec.z
-    
-        return new Vec3(
-            e[0] * x + e[4] * y + e[8] * z,
-            e[1] * x + e[5] * y + e[9] * z,
-            e[2] * x + e[6] * y + e[10] * z
-        )
-    }
-
-    // ray: Ray
-    // return Ray
-    applyToRay(ray) {
-        return new Ray(this.applyToPoint(ray.origin), this.applyToVector(ray.direction))
-    }
-
-    // eye: Vec3
-    // target: Vec3
-    // up: Vec3
-    lookAt(eye, target, up) {
-        const zAxis = eye.clone().sub(target).normalize()
-        const xAxis = cross(up.clone(), zAxis).normalize()
-        const yAxis = cross(zAxis.clone(), xAxis)
-
-        const e = this.elements
-        e[0] = xAxis.x
-        e[1] = yAxis.x
-        e[2] = zAxis.x
-        e[3] = 0
-
-        e[4] = xAxis.y
-        e[5] = yAxis.y
-        e[6] = zAxis.y
-        e[7] = 0
-
-        e[8] = xAxis.z
-        e[9] = yAxis.z
-        e[10] = zAxis.z
-        e[11] = 0
-
-        e[12] = dot(-xAxis, eye)
-        e[13] = dot(-yAxis, eye)
-        e[14] = dot(-zAxis, eye)
-        e[15] = 1
-
-        return this
-    }
-
-    clone() {
-        const result = new Matrix4x4()
-        result.elements.set(this.elements)
-        return result
+    // inRay: Ray
+    // hit: HitRecord
+    // return [attenuation: Vec3, scattered: Ray]
+    scatter(inRay, hit) {
+        const reflected = reflect(inRay.direction.clone.normalize(), hit.normal)
+        const scattered = new Ray(hit.p, reflected)
+        const doScatter = dot(scattered.direction, hit.normal) > 0
+        return doScatter ? [this.albedo, scattered] : [0, null]
     }
 }
 
@@ -449,6 +66,7 @@ class HitRecord {
     t // float
     p // Vec3
     normal // Vec3
+    material // Material
 }
 
 class Hitable {
@@ -558,39 +176,36 @@ class Camera {
     }
 }
 
-// return Vec3
-function randomInUnitSphere() {
-    let p = new Vec3(0, 0, 0)
-
-    do {
-        p = (new Vec3(Math.random(), Math.random(), Math.random())).mul(2).sub(new Vec3(1, 1, 1))
-    } while(p.lengthSquared() >= 1)
-
-    return p
-}
-
 NORMALS = 0
-DIFFUSE = 1
-RENDER_MODE = DIFFUSE
+MATERIALS = 1
+RENDER_MODE = MATERIALS
 
 // r: Ray
 // world: HitableList
 // return Vec3
-function color(r, world) {
+function color(r, world, depth) {
     const MAXFLOAT = 999999999999999;
     let hit = world.hit(r, 0.001, MAXFLOAT)
 
     if (hit) {
         if (RENDER_MODE == NORMALS) {
             return (new Vec3(hit.normal.x+1, hit.normal.y+1, hit.normal.z+1)).mul(0.5)
-        } else if (RENDER_MODE == DIFFUSE) {
-            const target = hit.p.clone().add(hit.normal).add(randomInUnitSphere())
-            return color(new Ray(hit.p, target.sub(hit.p)), world).mul(0.5)
+        } else if (RENDER_MODE == MATERIALS) {
+            if (depth < 50) {
+                const [attenuation, scatttered] = hit.material.scatter(r, hit)
+                if  (scatttered) {
+                    return color(scatttered, world, depth+1).mul(attenuation)
+                } else {
+                    return new Vec3(0, 0, 0)   
+                }
+            } else {
+                return new Vec3(0, 0, 0)
+            }
         }
     } else {
         const unitDirection = r.direction.normalize()
         t = 0.5*(unitDirection.y + 1.0)
-        const BACKGROUND_LIGHT = RENDER_MODE == NORMALS ? 0 : 0.75
+        const BACKGROUND_LIGHT = RENDER_MODE == NORMALS ? 0 : 1
         const BACKGROUND_DARK = RENDER_MODE == NORMALS ? 0 : 0
         if (BACKGROUND_LIGHT == BACKGROUND_DARK) {
             return new Vec3(BACKGROUND_LIGHT, BACKGROUND_LIGHT, BACKGROUND_LIGHT)
@@ -608,9 +223,10 @@ const vertical = new Vec3(0, 2, 0)
 const origin = new Vec3(0, 0, 0)
 
 const world = new HitableList([
-    new Sphere(new Vec3(-1, -0.6, -3), 1.5),
-    new Sphere(new Vec3(0, 0, -1.5), 0.7),
-    new Sphere(new Vec3(0.3, 0.3, -0.7), 0.18)
+    new Sphere(new Vec3(0, 0, -1), 0.5, new Lambertian(new Vec3(0.8, 0.3, 0.3))),
+    new Sphere(new Vec3(0, -100.5, -1), 100, new Lambertian(new Vec3(0.8, 0.8, 0.0))),
+    new Sphere(new Vec3(1, 0, -1), 0.5, new Metal(new Vec3(0.8, 0.6, 0.2))),
+    new Sphere(new Vec3(-1, 0, -1), 0.5, new Metal(new Vec3(0.8, 0.8, 0.8))),
 ])
 
 const camera = new Camera()
@@ -656,8 +272,6 @@ function render() {
     
     tui.innerHTML = builder.toString()
 }
-
-const UP = new Vec3(0, 1, 0)
 
 const MOUSE_SENSITIVITY = 0.01
 const WHEEL_SENSITIVITY = 0.001
