@@ -39,24 +39,27 @@ class Lambertian extends Material {
 
 // v: Vec3
 // n: Vec3
+// return Vec3
 function reflect(v, n) {
     return v.clone().sub(n.clone().mul(2*dot(v, n)))
 }
 
 class Metal extends Material {
     albedo // Vec3
+    fuzz // float
 
-    constructor(albedo) {
+    constructor(albedo, fuzz) {
         super()
         this.albedo = albedo
+        this.fuzz = fuzz < 1 ? fuzz : 1
     }
 
     // inRay: Ray
     // hit: HitRecord
     // return [attenuation: Vec3, scattered: Ray]
     scatter(inRay, hit) {
-        const reflected = reflect(inRay.direction.clone.normalize(), hit.normal)
-        const scattered = new Ray(hit.p, reflected)
+        const reflected = reflect(inRay.direction.clone().normalize(), hit.normal)
+        const scattered = new Ray(hit.p, reflected.add(randomInUnitSphere().mul(this.fuzz)))
         const doScatter = dot(scattered.direction, hit.normal) > 0
         return doScatter ? [this.albedo, scattered] : [0, null]
     }
@@ -83,11 +86,13 @@ class Hitable {
 class Sphere extends Hitable {
     center // Vec3
     radius // float
+    material // Material
 
-    constructor(center, radius) {
+    constructor(center, radius, material) {
         super()
         this.center = center
         this.radius = radius
+        this.material = material
     }
 
     // ray: Ray
@@ -108,6 +113,7 @@ class Sphere extends Hitable {
                 rec.t = temp
                 rec.p = ray.pointAt(rec.t)
                 rec.normal = rec.p.clone().sub(this.center).div(this.radius)
+                rec.material = this.material
                 return rec
             }
 
@@ -118,6 +124,7 @@ class Sphere extends Hitable {
                 rec.t = temp
                 rec.p = ray.pointAt(rec.t)
                 rec.normal = rec.p.clone().sub(this.center).div(this.radius)
+                rec.material = this.material
                 return rec
             }
         }
@@ -188,13 +195,13 @@ function color(r, world, depth) {
     let hit = world.hit(r, 0.001, MAXFLOAT)
 
     if (hit) {
-        if (RENDER_MODE == NORMALS) {
+        if (RENDER_MODE === NORMALS) {
             return (new Vec3(hit.normal.x+1, hit.normal.y+1, hit.normal.z+1)).mul(0.5)
         } else if (RENDER_MODE == MATERIALS) {
             if (depth < 50) {
-                const [attenuation, scatttered] = hit.material.scatter(r, hit)
-                if  (scatttered) {
-                    return color(scatttered, world, depth+1).mul(attenuation)
+                const [attenuation, scattered] = hit.material.scatter(r, hit)
+                if  (scattered) {
+                    return color(scattered, world, depth + 1).mul(attenuation)
                 } else {
                     return new Vec3(0, 0, 0)   
                 }
@@ -205,7 +212,7 @@ function color(r, world, depth) {
     } else {
         const unitDirection = r.direction.normalize()
         t = 0.5*(unitDirection.y + 1.0)
-        const BACKGROUND_LIGHT = RENDER_MODE == NORMALS ? 0 : 1
+        const BACKGROUND_LIGHT = RENDER_MODE == NORMALS ? 0.2 : 0.75
         const BACKGROUND_DARK = RENDER_MODE == NORMALS ? 0 : 0
         if (BACKGROUND_LIGHT == BACKGROUND_DARK) {
             return new Vec3(BACKGROUND_LIGHT, BACKGROUND_LIGHT, BACKGROUND_LIGHT)
@@ -223,10 +230,10 @@ const vertical = new Vec3(0, 2, 0)
 const origin = new Vec3(0, 0, 0)
 
 const world = new HitableList([
-    new Sphere(new Vec3(0, 0, -1), 0.5, new Lambertian(new Vec3(0.8, 0.3, 0.3))),
-    new Sphere(new Vec3(0, -100.5, -1), 100, new Lambertian(new Vec3(0.8, 0.8, 0.0))),
-    new Sphere(new Vec3(1, 0, -1), 0.5, new Metal(new Vec3(0.8, 0.6, 0.2))),
-    new Sphere(new Vec3(-1, 0, -1), 0.5, new Metal(new Vec3(0.8, 0.8, 0.8))),
+    new Sphere(new Vec3(0, 0, -2), 1, new Lambertian(new Vec3(0.8, 0.3, 0.3))),
+    // new Sphere(new Vec3(0, -100.5, -1), 100, new Lambertian(new Vec3(0.8, 0.8, 0.0))),
+    new Sphere(new Vec3(4, 0, -2), 1, new Metal(new Vec3(0.8, 0.6, 0.2), 0.3)),
+    new Sphere(new Vec3(-4, 0, -2), 1, new Metal(new Vec3(0.8, 0.8, 0.8), 0.1)),
 ])
 
 const camera = new Camera()
@@ -253,7 +260,7 @@ function render() {
             const u = col / WIDTH
             const v = row / HEIGHT
             const ray = camera.getRay(u, v)
-            let c = color(ray, world)
+            let c = color(ray, world, 0)
 
             if (RENDER_MODE != NORMALS) {
                 c = new Vec3(Math.sqrt(c.x), Math.sqrt(c.y), Math.sqrt(c.z))
