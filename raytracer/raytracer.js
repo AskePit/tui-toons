@@ -3,7 +3,7 @@ class Material {
     // hit: HitRecord
     // return [attenuation: Vec3, scattered: Ray]
     scatter(inRay, hit) {
-        return [0, null]
+        return [new Vec3(0, 0, 0), null]
     }
 }
 
@@ -31,7 +31,7 @@ class Lambertian extends Material {
     // return [attenuation: Vec3, scattered: Ray]
     scatter(inRay, hit) {
         const target = hit.p.clone().add(hit.normal).add(randomInUnitSphere())
-        const scattered = new Ray(hit.p, target.sub(hit.p))
+        const scattered = new Ray(hit.p.clone(), target.sub(hit.p))
         const attenuation = this.albedo
         return [attenuation, scattered]
     }
@@ -59,9 +59,9 @@ class Metal extends Material {
     // return [attenuation: Vec3, scattered: Ray]
     scatter(inRay, hit) {
         const reflected = reflect(inRay.direction.clone().normalize(), hit.normal)
-        const scattered = new Ray(hit.p, reflected.add(randomInUnitSphere().mul(this.fuzz)))
-        const doScatter = dot(scattered.direction, hit.normal) > 0
-        return doScatter ? [this.albedo, scattered] : [0, null]
+        const scattered = new Ray(hit.p.clone(), reflected.add(randomInUnitSphere().mul(this.fuzz)))
+        const doScatter = dot(scattered.direction, hit.normal) < 0
+        return doScatter ? [this.albedo.clone(), scattered] : [new Vec3(0, 0, 0), null]
     }
 }
 
@@ -185,7 +185,19 @@ class Camera {
 
 NORMALS = 0
 MATERIALS = 1
-RENDER_MODE = MATERIALS
+RENDER_MODE = NORMALS
+
+function ambientColor(r) {
+    const unitDirection = r.direction.clone().normalize()
+    t = 0.5*(unitDirection.y + 1.0)
+    const BACKGROUND_LIGHT = RENDER_MODE == NORMALS ? 0.75 : 0.5
+    const BACKGROUND_DARK = RENDER_MODE == NORMALS ? 0 : 0
+    if (BACKGROUND_LIGHT == BACKGROUND_DARK) {
+        return new Vec3(BACKGROUND_LIGHT, BACKGROUND_LIGHT, BACKGROUND_LIGHT)
+    } else {
+        return new Vec3(BACKGROUND_LIGHT, BACKGROUND_LIGHT, BACKGROUND_LIGHT).mul(1 - t).add(new Vec3(BACKGROUND_DARK, BACKGROUND_DARK, BACKGROUND_DARK).mul(t))
+    }
+}
 
 // r: Ray
 // world: HitableList
@@ -194,46 +206,36 @@ function color(r, world, depth) {
     const MAXFLOAT = 999999999999999;
     let hit = world.hit(r, 0.001, MAXFLOAT)
 
-    if (hit) {
-        if (RENDER_MODE === NORMALS) {
-            return (new Vec3(hit.normal.x+1, hit.normal.y+1, hit.normal.z+1)).mul(0.5)
-        } else if (RENDER_MODE == MATERIALS) {
-            if (depth < 50) {
-                const [attenuation, scattered] = hit.material.scatter(r, hit)
-                if  (scattered) {
-                    return color(scattered, world, depth + 1).mul(attenuation)
-                } else {
-                    return new Vec3(0, 0, 0)   
-                }
-            } else {
-                return new Vec3(0, 0, 0)
-            }
-        }
-    } else {
-        const unitDirection = r.direction.normalize()
-        t = 0.5*(unitDirection.y + 1.0)
-        const BACKGROUND_LIGHT = RENDER_MODE == NORMALS ? 0.2 : 0.75
-        const BACKGROUND_DARK = RENDER_MODE == NORMALS ? 0 : 0
-        if (BACKGROUND_LIGHT == BACKGROUND_DARK) {
-            return new Vec3(BACKGROUND_LIGHT, BACKGROUND_LIGHT, BACKGROUND_LIGHT)
-        } else {
-            return new Vec3(BACKGROUND_LIGHT, BACKGROUND_LIGHT, BACKGROUND_LIGHT).mul(1 - t).add(new Vec3(BACKGROUND_DARK, BACKGROUND_DARK, BACKGROUND_DARK).mul(t))
-        }
+    if (!hit) {
+        return ambientColor(r)
     }
+
+    if (RENDER_MODE == NORMALS) {
+        return (new Vec3(hit.normal.x+1, hit.normal.y+1, hit.normal.z+1)).mul(0.5)
+    }
+
+    // RENDER_MODE == MATERIALS
+
+    const REFLECTIONS_COUNT = 4
+
+    if (depth >= REFLECTIONS_COUNT) {
+        return ambientColor(r)
+    }
+
+    const [attenuation, scattered] = hit.material.scatter(r, hit)
+    if (!scattered) {
+        return ambientColor(r)
+    }
+
+    return color(scattered, world, depth + 1).mulVec(attenuation)
 }
 
 const INVERT_COLORS = false;
 
-const lowerLeftCorner = new Vec3(-2, -1, -1)
-const horizontal = new Vec3(4, 0, 0)
-const vertical = new Vec3(0, 2, 0)
-const origin = new Vec3(0, 0, 0)
-
 const world = new HitableList([
-    new Sphere(new Vec3(0, 0, -2), 1, new Lambertian(new Vec3(0.8, 0.3, 0.3))),
-    // new Sphere(new Vec3(0, -100.5, -1), 100, new Lambertian(new Vec3(0.8, 0.8, 0.0))),
-    new Sphere(new Vec3(4, 0, -2), 1, new Metal(new Vec3(0.8, 0.6, 0.2), 0.3)),
-    new Sphere(new Vec3(-4, 0, -2), 1, new Metal(new Vec3(0.8, 0.8, 0.8), 0.1)),
+    new Sphere(new Vec3(-1, -0.6, -3), 1.5, new Lambertian(new Vec3(0.4, 0.4, 0.4))),
+    new Sphere(new Vec3(0, 0, -1.5), 0.7, new Metal(new Vec3(1, 0.6, 0.6), 0.2)),
+    new Sphere(new Vec3(0.3, 0.3, -0.7), 0.18, new Metal(new Vec3(0.8, 0.8, 0.8), 0.1)),
 ])
 
 const camera = new Camera()
@@ -242,7 +244,7 @@ let builder = new StringBuilder()
 function render() {
     builder.clear()
 
-    for(let row = 0; row<HEIGHT; ++row) {
+    for(let row = HEIGHT-1; row>=0; --row) {
         for(let col = 0; col<WIDTH; ++col) {
             // NOTE: Too expensive!
             //
@@ -253,7 +255,7 @@ function render() {
             //     const v = (row + Math.random()) / HEIGHT
     
             //     const ray = camera.getRay(u, v)
-            //     c.add(color(ray, world))
+            //     c.add(color(ray, world, 0))
             // }
             // c.div(NS)
 
@@ -262,16 +264,22 @@ function render() {
             const ray = camera.getRay(u, v)
             let c = color(ray, world, 0)
 
+            if (c.x === NaN || c.y === NaN || c.z === NaN) {
+                console.log(c)
+            }
+
             if (RENDER_MODE != NORMALS) {
                 c = new Vec3(Math.sqrt(c.x), Math.sqrt(c.y), Math.sqrt(c.z))
             }
+
+            clampColor(c)
     
             const r = 100*c.x
             const g = 100*c.y
             const b = 100*c.z
-            //const avg = 29.9*c.x + 58.7*c.y + 11.4*c.z
+            // const avg = 29.9*c.x + 58.7*c.y + 11.4*c.z
             const avg = (r + g + b) / 3
-    
+
             builder.append(getGraySymbolHtml(INVERT_COLORS ? 100-avg : avg))
         }
         builder.append('<br>')
@@ -326,7 +334,6 @@ document.onkeydown = (el) => {
 
 tui.onwheel = (el) => {
     camera.focus += el.deltaY * WHEEL_SENSITIVITY
-    console.log(el.deltaY)
     render()
 }
 
@@ -345,7 +352,7 @@ tui.onmousemove = (el) => {
         return
     }
     camera.transform.rotateAroundWorldAxis(UP, el.movementX * MOUSE_SENSITIVITY)
-    camera.transform.rotateX(el.movementY * MOUSE_SENSITIVITY)
+    camera.transform.rotateX(-el.movementY * MOUSE_SENSITIVITY)
     render()
 }
 

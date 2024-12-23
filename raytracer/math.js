@@ -50,6 +50,14 @@ class Vec3 {
         return this
     }
 
+    mulVec(other) {
+        this.x *= other.x
+        this.y *= other.y
+        this.z *= other.z
+
+        return this
+    }
+
     div(coef) {
         this.x /= coef
         this.y /= coef
@@ -92,6 +100,13 @@ function cross(v1, v2) {
        -v1.x*v2.z - v1.z*v2.x,
         v1.x*v2.y - v1.y*v2.x
     )
+}
+
+// c: Vec3
+function clampColor(c) {
+    c.x = Math.max(Math.min(c.x, 1), 0)
+    c.y = Math.max(Math.min(c.y, 1), 0)
+    c.z = Math.max(Math.min(c.z, 1), 0)
 }
 
 class Ray {
@@ -290,7 +305,7 @@ class Matrix4x4 {
         return this.moveLeft(-step)
     }
     
-    moveDown(step) {
+    moveUp(step) {
         const e = this.elements
     
         // Extract the local Y-axis direction from the matrix
@@ -304,8 +319,8 @@ class Matrix4x4 {
         return this
     }
     
-    moveUp(step) {
-        return this.moveDown(-step)
+    moveDown(step) {
+        return this.moveUp(-step)
     }
 
     // other: Matrix4z4
