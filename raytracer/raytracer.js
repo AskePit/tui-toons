@@ -310,7 +310,7 @@ class Camera {
 
 const NORMALS = 0
 const MATERIALS = 1
-const RENDER_MODE = NORMALS
+const RENDER_MODE = MATERIALS
 
 function ambientColor(r) {
     const unitDirection = r.direction.clone().normalize()
@@ -363,15 +363,40 @@ function color(r, world, depth) {
     return color(scattered, world, depth + 1).mulVec(attenuation)
 }
 
+// return array[Sphere]
+function generateSpheresGlobe(spheresCount, yLevel, minX, maxX, minZ, maxZ)
+{
+    const spheres = []
+
+    for(let i = 0; i < spheresCount; ++i) {
+        const materialRand = Math.random()
+        let material
+        if (materialRand < 0.33) {
+            material = new Metal(new Vec3(Math.random(), Math.random(), Math.random()), Math.random())
+        } else if (materialRand < 0.66) {
+            material = new Lambertian(new Vec3(Math.random(), Math.random(), Math.random()))
+        } else {
+            material = new Dielectric(Math.random() + 1.0)
+        }
+
+        const sphere = new Sphere(new Vec3(getRandomFloat(minX, maxX), yLevel, getRandomFloat(minZ, maxZ)), getRandomFloat(0.1, 4), material)
+        spheres.push(sphere)
+    }
+
+    return spheres
+}
+
 const INVERT_COLORS = false;
 
 const world = new HitableList([
-    new Sphere(new Vec3(-1, -0.6, -3), 1.5, new Lambertian(new Vec3(0.4, 0.4, 0.4))),
-    new Sphere(new Vec3(0, 0, -1.5), 0.7, new Metal(new Vec3(1, 0.6, 0.6), 0.2)),
-    new Sphere(new Vec3(0.3, 0.3, -0.7), 0.18, new Metal(new Vec3(0.8, 0.8, 0.8), 0.1)),
+    // new Sphere(new Vec3(-1, -0.6, -3), 1.5, new Lambertian(new Vec3(0.4, 0.4, 0.4))),
+    // new Sphere(new Vec3(0, 0, -1.5), 0.7, new Metal(new Vec3(1, 0.6, 0.6), 0.2)),
+    // new Sphere(new Vec3(0.3, 0.3, -0.7), 0.18, new Metal(new Vec3(0.8, 0.8, 0.8), 0.1)),
+    ...generateSpheresGlobe(24, 0, -25, 25, -50, -4)
 ])
 
 const camera = new Camera()
+//camera.transform.rotateX(-0.5)
 let builder = new StringBuilder()
 
 function render() {
@@ -423,7 +448,7 @@ function render() {
 
 const MOUSE_SENSITIVITY = 0.01
 const WHEEL_SENSITIVITY = 0.001
-const KEYBOARD_SENSITIVITY = 0.1
+const KEYBOARD_SENSITIVITY = 0.2
 const KEY_COOLDOWN_MS = 1
 
 let lastPressTime = Date.now()
@@ -451,14 +476,6 @@ document.onkeydown = (el) => {
         camera.transform.moveDown(KEYBOARD_SENSITIVITY)
     } else if (el.key == 'e') {
         camera.transform.moveUp(KEYBOARD_SENSITIVITY)
-    } else if (el.key == 'ArrowUp') {
-        camera.transform.rotateX(-KEYBOARD_SENSITIVITY)
-    } else if (el.key == 'ArrowDown') {
-        camera.transform.rotateX(KEYBOARD_SENSITIVITY)
-    } else if (el.key == 'ArrowLeft') {
-        camera.transform.rotateAround(UP, -KEYBOARD_SENSITIVITY)
-    } else if (el.key == 'ArrowRight') {
-        camera.transform.rotateAround(UP, KEYBOARD_SENSITIVITY)
     }
 
     render()
