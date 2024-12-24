@@ -83,16 +83,68 @@ class Hitable {
     }
 }
 
+const ORBIT_DT = 30 // ms
+
 class Sphere extends Hitable {
     center // Vec3
     radius // float
     material // Material
+
+    orbitTransform // Matrix4x4
+    orbitRadius // float, m
+    orbitingSpeed // float, %/s
+    orbitingProgress // float, %
 
     constructor(center, radius, material) {
         super()
         this.center = center
         this.radius = radius
         this.material = material
+        return this
+    }
+
+    // origin: Vec3
+    // rotation: Vec3
+    // speed: float
+    setOrbitParams(origin, radius, rotation, speed) {
+        this.orbitingProgress = 0
+        this.orbitingSpeed = speed
+        this.orbitRadius = radius
+
+        this.orbitTransform = new Matrix4x4()
+        this.orbitTransform.translate(origin)
+        this.orbitTransform.rotateX(rotation.x)
+        this.orbitTransform.rotateY(rotation.y)
+        this.orbitTransform.rotateZ(rotation.z)
+
+        setInterval(() => this.rotationUpdate(), ORBIT_DT)
+
+        return this
+    }
+
+    rotationUpdate() {
+        const orbitProgressDt = ORBIT_DT / 1000 * this.orbitingSpeed
+        this.orbitingProgress += orbitProgressDt
+        this.orbitingProgress %= 100
+
+        const angle = 2*Math.PI * this.orbitingProgress / 100
+        const localX = this.orbitRadius * Math.cos(angle)
+        const localY = this.orbitRadius * Math.sin(angle)
+        const localZ = 0
+
+        const localPoint = new Vec3(localX, localY, localZ)
+        this.center = this.orbitTransform.applyToPoint(localPoint)
+        render()
+    }
+
+    setRandomOrbitParams() {
+        const MIN_SPEED = 10
+        const MAX_SPEED = 50
+
+        const MIN_RADIUS = 4
+        const MAX_RADIUS = 10
+
+        return this.setOrbitParams(ZERO_VEC, getRandomFloat(MIN_RADIUS, MAX_RADIUS), new Vec3(Math.random()*2*Math.PI, Math.random()*2*Math.PI, Math.random()*2*Math.PI), getRandomFloat(MIN_SPEED, MAX_SPEED))
     }
 
     // ray: Ray
@@ -183,20 +235,21 @@ class Camera {
     }
 }
 
-NORMALS = 0
-MATERIALS = 1
-RENDER_MODE = NORMALS
+const NORMALS = 0
+const MATERIALS = 1
+const RENDER_MODE = MATERIALS
 
 function ambientColor(r) {
     const unitDirection = r.direction.clone().normalize()
     t = 0.5*(unitDirection.y + 1.0)
-    const BACKGROUND_LIGHT = RENDER_MODE == NORMALS ? 0.75 : 0.5
-    const BACKGROUND_DARK = RENDER_MODE == NORMALS ? 0 : 0
-    if (BACKGROUND_LIGHT == BACKGROUND_DARK) {
-        return new Vec3(BACKGROUND_LIGHT, BACKGROUND_LIGHT, BACKGROUND_LIGHT)
-    } else {
-        return new Vec3(BACKGROUND_LIGHT, BACKGROUND_LIGHT, BACKGROUND_LIGHT).mul(1 - t).add(new Vec3(BACKGROUND_DARK, BACKGROUND_DARK, BACKGROUND_DARK).mul(t))
-    }
+    const BACKGROUND_LIGHT = 1
+    const BACKGROUND_DARK = 0
+    return new Vec3(BACKGROUND_LIGHT, BACKGROUND_LIGHT, BACKGROUND_LIGHT).mul(1 - t).add(new Vec3(BACKGROUND_DARK, BACKGROUND_DARK, BACKGROUND_DARK).mul(t))
+}
+
+function fakeAmbientColor() {
+    const BACKGROUND_BRIGHTNESS = 0
+    return new Vec3(BACKGROUND_BRIGHTNESS, BACKGROUND_BRIGHTNESS, BACKGROUND_BRIGHTNESS)
 }
 
 // r: Ray
@@ -207,7 +260,14 @@ function color(r, world, depth) {
     let hit = world.hit(r, 0.001, MAXFLOAT)
 
     if (!hit) {
-        return ambientColor(r)
+        // We do not want our ASCII-screen be rubbished by ambient noise, but
+        // we do want ambient influence our spheres. So do not show ambient
+        // on a hit miss, but make it influence reflections and refractions
+        if (depth > 0) {
+            return ambientColor(r)
+        } else {
+            return fakeAmbientColor()
+        }
     }
 
     if (RENDER_MODE == NORMALS) {

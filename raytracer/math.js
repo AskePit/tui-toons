@@ -414,6 +414,7 @@ class Matrix4x4 {
     }
 }
 
+const ZERO_VEC = new Vec3(0, 0, 0)
 const UP = new Vec3(0, 1, 0)
 const DOWN = new Vec3(0, -1, 0)
 const LEFT = new Vec3(0, -1, 0)
