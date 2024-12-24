@@ -65,6 +65,79 @@ class Metal extends Material {
     }
 }
 
+// v: Vec3
+// n: Vec3
+// niOverNt: float
+// return Vec3 or null
+function refract(v, n, niOverNt) {
+    const uv = v.clone().normalize()
+    const dt = dot(uv, n)
+    const discriminant = 1 - niOverNt*niOverNt*(1-dt*dt)
+
+    if (discriminant > 0) {
+        const refracted = uv.sub(n.clone().mul(dt)).mul(niOverNt).sub(n.clone().mul(Math.sqrt(discriminant)))
+        return refracted
+    } else {
+        return null
+    }
+}
+
+// cosine: float
+// refractionIndex: float
+// return float
+function schlick(cosine, refractionIndex) {
+    let r0 = (1 - refractionIndex) / (1 + refractionIndex)
+    r0 = r0*r0
+    return r0 + (1-r0)*Math.pow((1-cosine), 5) 
+}
+
+class Dielectric extends Material {
+    refractionIndex // float
+
+    constructor(index) {
+        super()
+        this.refractionIndex = index
+    }
+
+    // inRay: Ray
+    // hit: HitRecord
+    // return [attenuation: Vec3, scattered: Ray]
+    scatter(inRay, hit) {
+        let outwardNormal
+        let niOverNt
+        const reflected = reflect(inRay.direction, hit.normal)
+        let reflectProb
+        let cosine
+        let scattered
+
+        if (dot(inRay.direction, hit.normal) > 0) {
+            outwardNormal = hit.normal.clone().negate()
+            niOverNt = this.refractionIndex
+            cosine = this.refractionIndex * dot(inRay.direction, hit.normal) / inRay.direction.length()
+        } else {
+            outwardNormal = hit.normal.clone()
+            niOverNt = 1 / this.refractionIndex
+            cosine = -dot(inRay.direction, hit.normal) / inRay.direction.length()
+        }
+
+        const refracted = refract(inRay.direction, outwardNormal, niOverNt)
+        if (refracted) {
+            reflectProb = schlick(cosine, this.refractionIndex)
+        } else {
+            scattered = new Ray(hit.p, reflected)
+            reflectProb = 1
+        }
+
+        if (Math.random() < reflectProb) {
+            scattered = new Ray(hit.p, reflected)
+        } else {
+            scattered = new Ray(hit.p, refracted)
+        }
+
+        return [new Vec3(1, 1, 1), scattered]
+    }
+}
+
 class HitRecord {
     t // float
     p // Vec3
@@ -237,7 +310,7 @@ class Camera {
 
 const NORMALS = 0
 const MATERIALS = 1
-const RENDER_MODE = MATERIALS
+const RENDER_MODE = NORMALS
 
 function ambientColor(r) {
     const unitDirection = r.direction.clone().normalize()
