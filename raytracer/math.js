@@ -94,10 +94,11 @@ function dot(v1, v2) {
 // v1: Vec3
 // v2: Vec3
 // return Vec3
+// right-handed
 function cross(v1, v2) {
     return new Vec3(
         v1.y*v2.z - v1.z*v2.y,
-       -v1.x*v2.z - v1.z*v2.x,
+        v1.z*v2.x - v1.x*v2.z,
         v1.x*v2.y - v1.y*v2.x
     )
 }
@@ -343,6 +344,55 @@ class Matrix4x4 {
         return this
     }
 
+    invert() {
+        const e = this.elements
+    
+        // Extract the rotation/scaling part (top-left 3x3 matrix)
+        const r0 = new Vec3(e[0], e[1], e[2])
+        const r1 = new Vec3(e[4], e[5], e[6])
+        const r2 = new Vec3(e[8], e[9], e[10])
+    
+        // Extract the translation part (last column)
+        const translation = new Vec3(e[12], e[13], e[14])
+    
+        // Compute the inverse of the rotation/scaling matrix
+        // For orthonormal matrices (pure rotation), this is just the transpose
+        const invR0 = new Vec3(r0.x, r1.x, r2.x)
+        const invR1 = new Vec3(r0.y, r1.y, r2.y)
+        const invR2 = new Vec3(r0.z, r1.z, r2.z)
+    
+        // Compute the inverse translation
+        const invTranslation = new Vec3(
+            -translation.dot(invR0),
+            -translation.dot(invR1),
+            -translation.dot(invR2)
+        )
+    
+        // Rebuild the inverse matrix
+        this.elements.set([
+            invR0.x, invR0.y, invR0.z, 0,
+            invR1.x, invR1.y, invR1.z, 0,
+            invR2.x, invR2.y, invR2.z, 0,
+            invTranslation.x, invTranslation.y, invTranslation.z, 1
+        ])
+    
+        return this
+    }
+
+    transpose() {
+        const e = this.elements
+    
+        // Swap elements to transpose the matrix
+        this.elements.set([
+            e[0], e[4], e[8],  e[12],
+            e[1], e[5], e[9],  e[13],
+            e[2], e[6], e[10], e[14],
+            e[3], e[7], e[11], e[15]
+        ])
+    
+        return this
+    }
+
     // vec: Vec3 as a point
     // return Vec3
     applyToPoint(point) {
@@ -417,7 +467,7 @@ class Matrix4x4 {
 const ZERO_VEC = new Vec3(0, 0, 0)
 const UP = new Vec3(0, 1, 0)
 const DOWN = new Vec3(0, -1, 0)
-const LEFT = new Vec3(0, -1, 0)
-const RIGHT = new Vec3(0, 1, 0)
+const LEFT = new Vec3(-1, 0, 0)
+const RIGHT = new Vec3(1, 0, 0)
 const TOWARDS_CAMERA = new Vec3(0, 0, 1)
 const FROM_CAMERA = new Vec3(0, 0, -1)

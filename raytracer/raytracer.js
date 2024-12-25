@@ -258,6 +258,143 @@ class Sphere extends Hitable {
     }
 }
 
+class Plane extends Hitable {
+    point // Vec3
+    normal // Vec3
+    material // Material
+
+    constructor(point, normal, material) {
+        super()
+        this.point = point
+        this.normal = normal
+        this.material = material
+    }
+
+    // ray: Ray
+    // tMin: float
+    // tMax: float
+    // return HitRecord ot null
+    hit(ray, tMin, tMax) {
+        const denom = dot(this.normal, ray.direction)
+        if (denom == 0) {
+            return null
+        }
+        const numer = dot(this.normal, this.point.clone().sub(ray.origin))
+
+        const t = numer/denom
+        if (t < tMin || t > tMax) {
+            return null
+        }
+
+        let rec = new HitRecord()
+        rec.t = t
+        rec.p = ray.pointAt(t)
+        rec.normal = this.normal.clone()
+        rec.material = this.material
+
+        return rec
+    }
+}
+
+class Cube extends Hitable {
+    center // Vec3
+    size // float
+    rotation // Matrix4x4
+    planes // array[Plane; 6]
+    material // Material
+
+    // center: Vec3
+    // size: float
+    // rotation: Vec3
+    constructor(center, size, rotation, material) {
+        super()
+        this.center = center
+        this.size = size
+        this.material = material
+        this.rotation = new Matrix4x4()
+        this.rotation.rotateX(rotation.x)
+        this.rotation.rotateY(rotation.y)
+        this.rotation.rotateZ(rotation.z)
+        this.inverseRotation = this.rotation.clone().transpose()
+
+        this.half = this.size/2
+        const half = this.half
+
+        this.planes = [
+            new Plane(new Vec3(0, half, 0), UP.clone(), this.material),
+            new Plane(new Vec3(0, -half, 0), DOWN.clone(), this.material),
+            new Plane(new Vec3(0, 0, half), TOWARDS_CAMERA.clone(), this.material),
+            new Plane(new Vec3(0, 0, -half), FROM_CAMERA.clone(), this.material),
+            new Plane(new Vec3(-half, 0, 0), LEFT.clone(), this.material),
+            new Plane(new Vec3(half, 0, 0), RIGHT.clone(), this.material),
+        ]
+    }
+
+    // ray: Ray
+    // tMin: float
+    // tMax: float
+    // return HitRecord ot null
+    hit(ray, tMin, tMax) {
+        const localRay = new Ray(
+            this.inverseRotation.applyToPoint(ray.origin.clone().sub(this.center)),
+            this.inverseRotation.applyToVector(ray.direction)
+        )
+
+        let rec = null
+        let closest = tMax
+
+        for(let i = 0; i<6; ++i) {
+            const tmpRec = this.planes[i].hit(localRay, tMin, closest)
+            if (!tmpRec) {
+                continue
+            }
+
+            let boundsCheck = true
+            for(let bound = 0; bound<3; ++bound) {
+                if (bound == this.ignoredBounds[i]) {
+                    continue
+                }
+
+                if (bound == X) {
+                    if (tmpRec.p.x < -this.half || tmpRec.p.x > this.half) {
+                        boundsCheck = false
+                        break
+                    }
+                } else if (bound == Y) {
+                    if (tmpRec.p.y < -this.half || tmpRec.p.y > this.half) {
+                        boundsCheck = false
+                        break
+                    }
+                } else if (bound == Z) {
+                    if (tmpRec.p.z < -this.half || tmpRec.p.z > this.half) {
+                        boundsCheck = false
+                        break
+                    }
+                }
+            }
+
+            if (boundsCheck) {
+                rec = tmpRec
+                closest = rec.t
+            }
+        }
+
+        if (rec) {
+            rec.p = this.rotation.applyToPoint(rec.p).add(this.center)
+            rec.normal = this.rotation.applyToVector(rec.normal).normalize()
+        }
+
+        return rec
+    }
+}
+
+const X = 0
+const Y = 1
+const Z = 2
+Cube.prototype.ignoredBounds = [
+    Y, Y, Z, Z, X, X
+]
+
 class HitableList extends Hitable {
     hitables // array[Hitable]
 
@@ -272,16 +409,14 @@ class HitableList extends Hitable {
     // tMax: float
     // return HitRecord ot null
     hit(ray, tMin, tMax) {
-        let rec = null;
-        let tempRec = null
-
+        let rec = null
         let closest = tMax
 
         for(let i = 0; i<this.hitables.length; ++i) {
-            tempRec = this.hitables[i].hit(ray, tMin, closest)
-            if (tempRec) {
-                closest = tempRec.t
-                rec = tempRec
+            const tmpRec = this.hitables[i].hit(ray, tMin, closest)
+            if (tmpRec) {
+                rec = tmpRec
+                closest = rec.t
             }
         }
 
@@ -349,7 +484,7 @@ function color(r, world, depth) {
 
     // RENDER_MODE == MATERIALS
 
-    const REFLECTIONS_COUNT = 4
+    const REFLECTIONS_COUNT = 3
 
     if (depth >= REFLECTIONS_COUNT) {
         return ambientColor(r)
@@ -364,7 +499,7 @@ function color(r, world, depth) {
 }
 
 // return array[Sphere]
-function generateSpheresGlobe(spheresCount, yLevel, minX, maxX, minZ, maxZ)
+function generateGlobe(spheresCount, yLevel, minX, maxX, minZ, maxZ)
 {
     const spheres = []
 
@@ -379,8 +514,24 @@ function generateSpheresGlobe(spheresCount, yLevel, minX, maxX, minZ, maxZ)
             material = new Dielectric(Math.random() + 1.0)
         }
 
-        const sphere = new Sphere(new Vec3(getRandomFloat(minX, maxX), yLevel, getRandomFloat(minZ, maxZ)), getRandomFloat(0.1, 4), material)
-        spheres.push(sphere)
+        const shapeRand = Math.random()
+        let shape
+        if (shapeRand > 0.5) {
+            shape = new Sphere(
+                new Vec3(getRandomFloat(minX, maxX), yLevel, getRandomFloat(minZ, maxZ)),
+                getRandomFloat(0.1, 4),
+                material
+            )
+        } else {
+            shape = new Cube(
+                new Vec3(getRandomFloat(minX, maxX), yLevel, getRandomFloat(minZ, maxZ)),
+                getRandomFloat(0.2, 8),
+                new Vec3(Math.random()*2*Math.PI, Math.random()*2*Math.PI, Math.random()*2*Math.PI),
+                material
+            )
+        }
+
+        spheres.push(shape)
     }
 
     return spheres
@@ -392,11 +543,12 @@ const world = new HitableList([
     // new Sphere(new Vec3(-1, -0.6, -3), 1.5, new Lambertian(new Vec3(0.4, 0.4, 0.4))),
     // new Sphere(new Vec3(0, 0, -1.5), 0.7, new Metal(new Vec3(1, 0.6, 0.6), 0.2)),
     // new Sphere(new Vec3(0.3, 0.3, -0.7), 0.18, new Metal(new Vec3(0.8, 0.8, 0.8), 0.1)),
-    ...generateSpheresGlobe(24, 0, -25, 25, -50, -4)
+    ...generateGlobe(12, 0, -25, 25, -50, -4)
+    // new Cube(new Vec3(-1, 0, -5), 2, ZERO_VEC, new Dielectric(0.2)),
+    // new Sphere(new Vec3(1, 0, -5), 1, new Lambertian(new Vec3(0.4, 0.4, 0.4)))
 ])
 
 const camera = new Camera()
-//camera.transform.rotateX(-0.5)
 let builder = new StringBuilder()
 
 function render() {
