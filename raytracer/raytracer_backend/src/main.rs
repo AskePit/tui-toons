@@ -1,6 +1,8 @@
-use std::sync::Arc;
 use glam::vec3;
-use raytracer_backend::{clamp_color, color, generate_globe, Camera, Lambertian, Metal, RenderMode, Sphere, World};
+use raytracer_backend::{
+    clamp_color, color, generate_globe, Camera, Lambertian, Metal, RenderMode, Sphere, World,
+};
+use std::sync::Arc;
 
 const WIDTH: usize = 160;
 const HEIGHT: usize = 80;
@@ -62,13 +64,23 @@ fn render(world: &World, camera: &Camera) {
 }
 
 fn main() {
-    let world: World = World::new(
-        vec![
-            Box::new(Sphere::new(vec3(-1.0, -0.6, -3.0), 1.5, Arc::new(Lambertian::new(vec3(0.4, 0.4, 0.4))))),
-            Box::new(Sphere::new(vec3(0.0, 0.0, -1.5), 0.7, Arc::new(Metal::new(vec3(1.0, 0.6, 0.6), 0.2)))),
-            Box::new(Sphere::new(vec3(0.3, 0.3, -0.7), 0.18, Arc::new(Metal::new(vec3(0.8, 0.8, 0.8), 0.1)))),
-        ]
-    );
+    let world: World = World::new(vec![
+        Box::new(Sphere::new(
+            vec3(-1.0, -0.6, -3.0),
+            1.5,
+            Arc::new(Lambertian::new(vec3(0.4, 0.4, 0.4))),
+        )),
+        Box::new(Sphere::new(
+            vec3(0.0, 0.0, -1.5),
+            0.7,
+            Arc::new(Metal::new(vec3(1.0, 0.6, 0.6), 0.2)),
+        )),
+        Box::new(Sphere::new(
+            vec3(0.3, 0.3, -0.7),
+            0.18,
+            Arc::new(Metal::new(vec3(0.8, 0.8, 0.8), 0.1)),
+        )),
+    ]);
     // let world: World = generate_globe(12, 0.0, -25.0, 25.0, -50.0, -4.0);
     let camera = Camera::new();
 
