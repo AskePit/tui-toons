@@ -7,15 +7,15 @@ use std::fmt::Debug;
 use std::sync::Arc;
 
 #[derive(Clone, Debug)]
-struct HitRecord {
-    t: f32,
-    p: Vec3,
-    normal: Vec3,
-    material: Arc<dyn Material>,
+pub struct HitRecord {
+    pub t: f32,
+    pub p: Vec3,
+    pub normal: Vec3,
+    pub material: Arc<dyn Material>,
 }
 
 #[derive(Copy, Clone, Debug)]
-struct Ray {
+pub struct Ray {
     origin: Vec3,
     direction: Vec3,
 }
@@ -30,7 +30,7 @@ impl Ray {
     }
 }
 
-trait Material: Debug {
+pub trait Material: Debug {
     fn scatter(&self, _in_ray: &Ray, _hit: &HitRecord) -> Option<(Vec3, Ray)> {
         None
     }
@@ -56,12 +56,12 @@ fn random_in_unit_sphere() -> Vec3 {
 }
 
 #[derive(Clone, Debug)]
-struct Lambertian {
+pub struct Lambertian {
     albedo: Vec3,
 }
 
 impl Lambertian {
-    fn new(albedo: Vec3) -> Self {
+    pub fn new(albedo: Vec3) -> Self {
         Lambertian { albedo }
     }
 }
@@ -76,13 +76,13 @@ impl Material for Lambertian {
 }
 
 #[derive(Clone, Debug)]
-struct Metal {
+pub struct Metal {
     albedo: Vec3,
     fuzz: f32,
 }
 
 impl Metal {
-    fn new(albedo: Vec3, fuzz: f32) -> Self {
+    pub fn new(albedo: Vec3, fuzz: f32) -> Self {
         Metal {
             albedo,
             fuzz: if fuzz < 1.0 { fuzz } else { 1.0 },
@@ -109,12 +109,12 @@ fn schlick(cosine: f32, refraction_index: f32) -> f32 {
 }
 
 #[derive(Clone, Debug)]
-struct Dielectric {
+pub struct Dielectric {
     refraction_index: f32,
 }
 
 impl Dielectric {
-    fn new(refraction_index: f32) -> Self {
+    pub fn new(refraction_index: f32) -> Self {
         Dielectric { refraction_index }
     }
 }
@@ -154,7 +154,7 @@ impl Material for Dielectric {
     }
 }
 
-trait Hitable: Debug {
+pub trait Hitable: Debug {
     fn hit(&self, _ray: &Ray, _t_min: f32, _t_max: f32) -> Option<HitRecord> {
         None
     }
@@ -163,14 +163,14 @@ trait Hitable: Debug {
 const ORBIT_DT: usize = 30; // ms
 
 #[derive(Clone, Debug)]
-struct Sphere {
+pub struct Sphere {
     center: Vec3,
     radius: f32,
     material: Arc<dyn Material>,
 }
 
 impl Sphere {
-    fn new(center: Vec3, radius: f32, material: Arc<dyn Material>) -> Self {
+    pub fn new(center: Vec3, radius: f32, material: Arc<dyn Material>) -> Self {
         Sphere {
             center,
             radius,
@@ -222,7 +222,7 @@ impl Hitable for Sphere {
 }
 
 #[derive(Clone, Debug)]
-struct Plane {
+pub struct Plane {
     point: Vec3,
     normal: Vec3,
     material: Arc<dyn Material>,
@@ -261,7 +261,7 @@ impl Hitable for Plane {
 }
 
 #[derive(Clone, Debug)]
-struct Cube {
+pub struct Cube {
     center: Vec3,
     size: f32,
     half: f32,
@@ -365,12 +365,12 @@ impl Hitable for Cube {
 }
 
 #[derive(Debug)]
-struct HitablesList {
-    hitables: Vec<Box<dyn Hitable>>,
+pub struct HitablesList {
+    pub hitables: Vec<Box<dyn Hitable>>,
 }
 
 impl HitablesList {
-    fn new(hitables: Vec<Box<dyn Hitable>>) -> Self {
+    pub fn new(hitables: Vec<Box<dyn Hitable>>) -> Self {
         HitablesList { hitables }
     }
 }
@@ -393,7 +393,7 @@ impl Hitable for HitablesList {
     }
 }
 
-struct Camera {
+pub struct Camera {
     viewport_width: f32,
     viewport_height: f32,
     focus: f32,
@@ -401,7 +401,7 @@ struct Camera {
 }
 
 impl Camera {
-    fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             viewport_width: 4.0,
             viewport_height: 2.0,
@@ -410,7 +410,7 @@ impl Camera {
         }
     }
 
-    fn get_ray(&self, u: f32, v: f32) -> Ray {
+    pub fn get_ray(&self, u: f32, v: f32) -> Ray {
         let direction = vec3(
             u * self.viewport_width - self.viewport_width / 2.0,
             v * self.viewport_height - self.viewport_height / 2.0,
@@ -436,15 +436,21 @@ fn fake_ambient_color() -> Vec3 {
     Vec3::splat(BACKGROUND_BRIGHTNESS)
 }
 
-type World = HitablesList;
+pub type World = HitablesList;
 
 #[derive(PartialEq)]
-enum RenderMode {
+pub enum RenderMode {
     Normals,
     Materials,
 }
 
-fn color(r: &Ray, world: &World, depth: usize, render_mode: RenderMode) -> Vec3 {
+pub fn clamp_color(c: &mut Vec3) {
+    c.x = c.x.clamp(0.0, 1.0);
+    c.y = c.y.clamp(0.0, 1.0);
+    c.z = c.z.clamp(0.0, 1.0);
+}
+
+pub fn color(r: &Ray, world: &World, depth: usize, render_mode: RenderMode) -> Vec3 {
     let hit = world.hit(r, 0.001, f32::MAX);
 
     if hit.is_none() {
@@ -482,7 +488,7 @@ fn color(r: &Ray, world: &World, depth: usize, render_mode: RenderMode) -> Vec3 
     color(&scattered, world, depth + 1, render_mode) * attenuation
 }
 
-fn generate_globe(
+pub fn generate_globe(
     spheres_count: usize,
     y_level: f32,
     min_x: f32,
@@ -547,7 +553,3 @@ fn generate_globe(
 
     HitablesList::new(spheres)
 }
-
-const INVERT_COLORS: bool = false;
-
-//const WORLD: HitablesList = generate_globe(12, 0.0, -25.0, 25.0, -50.0, -4.0);
