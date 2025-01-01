@@ -393,6 +393,7 @@ impl Hitable for HitablesList {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Camera {
     viewport_width: f32,
     viewport_height: f32,
@@ -402,12 +403,7 @@ pub struct Camera {
 
 impl Camera {
     pub fn new() -> Self {
-        Self {
-            viewport_width: 4.0,
-            viewport_height: 2.0,
-            focus: -1.0,
-            transform: Default::default(),
-        }
+        Self::default()
     }
 
     pub fn get_ray(&self, u: f32, v: f32) -> Ray {
@@ -420,6 +416,17 @@ impl Camera {
             self.transform.transform_point3(Vec3::ZERO),
             self.transform.transform_vector3(direction),
         )
+    }
+}
+
+impl Default for Camera {
+    fn default() -> Self {
+        Self {
+            viewport_width: 4.0,
+            viewport_height: 2.0,
+            focus: -1.0,
+            transform: Default::default(),
+        }
     }
 }
 
@@ -436,9 +443,192 @@ fn fake_ambient_color() -> Vec3 {
     Vec3::splat(BACKGROUND_BRIGHTNESS)
 }
 
-pub type World = HitablesList;
+pub struct RenderParams {
+    width: usize,
+    height: usize,
+    render_mode: RenderMode,
+    invert_colors: bool,
+}
 
-#[derive(PartialEq)]
+impl Default for RenderParams {
+    fn default() -> Self {
+        Self {
+            width: 160,
+            height: 80,
+            render_mode: RenderMode::Materials,
+            invert_colors: false,
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct World {
+    pub camera: Camera,
+    pub objects: HitablesList,
+}
+
+impl World {
+    pub fn make_plane_default() -> Self {
+        Self::make_plane(12, 0.0, -25.0, 25.0, -50.0, -4.0)
+    }
+
+    pub fn make_plane(
+        spheres_count: usize,
+        y_level: f32,
+        min_x: f32,
+        max_x: f32,
+        min_z: f32,
+        max_z: f32,
+    ) -> Self {
+        let mut spheres = vec![];
+
+        for _ in 0..spheres_count {
+            let material_rand = rand::random_range(0.0..=1.0);
+            let material: Box<dyn Material> = if material_rand < 0.33 {
+                Box::new(Metal::new(
+                    vec3(
+                        rand::random_range(0.0..=1.0),
+                        rand::random_range(0.0..=1.0),
+                        rand::random_range(0.0..=1.0),
+                    ),
+                    rand::random_range(0.0..=1.0),
+                ))
+            } else if material_rand < 0.66 {
+                Box::new(Lambertian::new(vec3(
+                    rand::random_range(0.0..=1.0),
+                    rand::random_range(0.0..=1.0),
+                    rand::random_range(0.0..=1.0),
+                )))
+            } else {
+                Box::new(Dielectric::new(rand::random_range(0.0..=1.0) + 1.0))
+            };
+
+            let shape_rand = rand::random_range(0.0..=1.0);
+            let shape: Box<dyn Hitable> = if shape_rand > 0.5 {
+                Box::new(Sphere::new(
+                    vec3(
+                        rand::random_range(min_x..=max_x),
+                        y_level,
+                        rand::random_range(min_z..=max_z),
+                    ),
+                    rand::random_range(0.1..=4.0),
+                    material.into(),
+                ))
+            } else {
+                Box::new(Cube::new(
+                    vec3(
+                        rand::random_range(min_x..=max_x),
+                        y_level,
+                        rand::random_range(min_z..=max_z),
+                    ),
+                    rand::random_range(0.2..=8.0),
+                    Quat::from_euler(
+                        EulerRot::XYZ,
+                        rand::random_range(0.0..=2.0 * PI),
+                        rand::random_range(0.0..=2.0 * PI),
+                        rand::random_range(0.0..=2.0 * PI),
+                    ),
+                    material.into(),
+                ))
+            };
+
+            spheres.push(shape)
+        }
+
+        Self {
+            camera: Camera::new(),
+            objects: HitablesList::new(spheres),
+        }
+    }
+
+    pub fn make_three_spheres() -> Self {
+        Self {
+            camera: Camera::new(),
+            objects: HitablesList::new(vec![
+                Box::new(Sphere::new(
+                    vec3(-1.0, -0.6, -3.0),
+                    1.5,
+                    Arc::new(Lambertian::new(vec3(0.4, 0.4, 0.4))),
+                )),
+                Box::new(Sphere::new(
+                    vec3(0.0, 0.0, -1.5),
+                    0.7,
+                    Arc::new(Metal::new(vec3(1.0, 0.6, 0.6), 0.2)),
+                )),
+                Box::new(Sphere::new(
+                    vec3(0.3, 0.3, -0.7),
+                    0.18,
+                    Arc::new(Metal::new(vec3(0.8, 0.8, 0.8), 0.1)),
+                )),
+            ]),
+        }
+    }
+
+    fn get_gray_symbol(intensity: f32) -> char {
+        const SYMBOLS: &str = " ·:;znkW";
+        let n = SYMBOLS.chars().count();
+
+        let intensity = intensity.clamp(0.0, 100.0);
+        let index = (intensity * (n - 1) as f32 / 100.0).round() as usize;
+        let index = index.clamp(0, n - 1);
+        SYMBOLS.chars().nth(index).unwrap()
+    }
+
+    pub fn render_frame(&self, params: &RenderParams) -> String {
+        let mut result = String::new();
+
+        for row in (0..params.height).rev() {
+            for col in 0..params.width {
+                // NOTE: Too expensive!
+                //
+                // let c = new Vec3(0, 0, 0)
+                // const NS = 10
+                // for(let s = 0; s<NS; ++s) {
+                //     let u = (col + Math.random()) / width
+                //     let v = (row + Math.random()) / height
+
+                //     let ray = camera.getRay(u, v)
+                //     c.add(color(ray, world, 0))
+                // }
+                // c.div(NS)
+
+                let u = col as f32 / params.width as f32;
+                let v = row as f32 / params.height as f32;
+                let ray = self.camera.get_ray(u, v);
+                let mut c = color(&ray, self, 0, params.render_mode);
+
+                if params.render_mode != RenderMode::Normals {
+                    c = vec3(c.x.sqrt(), c.y.sqrt(), c.z.sqrt());
+                }
+
+                clamp_color(&mut c);
+
+                let r = 100.0 * c.x;
+                let g = 100.0 * c.y;
+                let b = 100.0 * c.z;
+                // let avg = 29.9*c.x + 58.7*c.y + 11.4*c.z
+                let avg = (r + g + b) / 3.0;
+
+                result.push(Self::get_gray_symbol(if params.invert_colors {
+                    100.0 - avg
+                } else {
+                    avg
+                }));
+            }
+            result.push('\n');
+        }
+
+        result
+    }
+}
+
+impl Hitable for World {
+    fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
+        self.objects.hit(ray, t_min, t_max)
+    }
+}
+
+#[derive(PartialEq, Copy, Clone)]
 pub enum RenderMode {
     Normals,
     Materials,
@@ -486,70 +676,4 @@ pub fn color(r: &Ray, world: &World, depth: usize, render_mode: RenderMode) -> V
     let (attenuation, scattered) = scatter_res.unwrap();
 
     color(&scattered, world, depth + 1, render_mode) * attenuation
-}
-
-pub fn generate_globe(
-    spheres_count: usize,
-    y_level: f32,
-    min_x: f32,
-    max_x: f32,
-    min_z: f32,
-    max_z: f32,
-) -> HitablesList {
-    let mut spheres = vec![];
-
-    for _ in 0..spheres_count {
-        let material_rand = rand::random_range(0.0..=1.0);
-        let material: Box<dyn Material> = if material_rand < 0.33 {
-            Box::new(Metal::new(
-                vec3(
-                    rand::random_range(0.0..=1.0),
-                    rand::random_range(0.0..=1.0),
-                    rand::random_range(0.0..=1.0),
-                ),
-                rand::random_range(0.0..=1.0),
-            ))
-        } else if material_rand < 0.66 {
-            Box::new(Lambertian::new(vec3(
-                rand::random_range(0.0..=1.0),
-                rand::random_range(0.0..=1.0),
-                rand::random_range(0.0..=1.0),
-            )))
-        } else {
-            Box::new(Dielectric::new(rand::random_range(0.0..=1.0) + 1.0))
-        };
-
-        let shape_rand = rand::random_range(0.0..=1.0);
-        let shape: Box<dyn Hitable> = if shape_rand > 0.5 {
-            Box::new(Sphere::new(
-                vec3(
-                    rand::random_range(min_x..=max_x),
-                    y_level,
-                    rand::random_range(min_z..=max_z),
-                ),
-                rand::random_range(0.1..=4.0),
-                material.into(),
-            ))
-        } else {
-            Box::new(Cube::new(
-                vec3(
-                    rand::random_range(min_x..=max_x),
-                    y_level,
-                    rand::random_range(min_z..=max_z),
-                ),
-                rand::random_range(0.2..=8.0),
-                Quat::from_euler(
-                    EulerRot::XYZ,
-                    rand::random_range(0.0..=2.0 * PI),
-                    rand::random_range(0.0..=2.0 * PI),
-                    rand::random_range(0.0..=2.0 * PI),
-                ),
-                material.into(),
-            ))
-        };
-
-        spheres.push(shape)
-    }
-
-    HitablesList::new(spheres)
 }
