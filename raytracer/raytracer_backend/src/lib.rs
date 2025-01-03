@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 
-use glam::{vec3, Affine3A, EulerRot, Quat, Vec3};
+mod wasm_layer;
+
+use getrandom::getrandom;
+use glam::{vec3, Affine3A, EulerRot, Mat3A, Quat, Vec3};
 use std::cmp::PartialEq;
 use std::f32::consts::PI;
 use std::fmt::Debug;
@@ -36,17 +39,28 @@ pub trait Material: Debug {
     }
 }
 
+fn rand_unit() -> f32 {
+    let mut buf = [0u8; 4];
+    getrandom(&mut buf).expect("Failed to generate random bytes");
+
+    // Convert bytes to u32
+    let random_u32 = u32::from_ne_bytes(buf);
+
+    // Convert u32 to f32 in the range [0.0, 1.0]
+    random_u32 as f32 / (u32::MAX - 1) as f32
+}
+
+fn rand_min_max(min: f32, max: f32) -> f32 {
+    let unit = rand_unit();
+    min + unit * (max - min)
+}
+
 // return Vec3
 fn random_in_unit_sphere() -> Vec3 {
     let mut p;
 
     loop {
-        p = (Vec3::new(
-            rand::random_range(0.0..=1.0),
-            rand::random_range(0.0..=1.0),
-            rand::random_range(0.0..=1.0),
-        )) * 2.0
-            - Vec3::ONE;
+        p = (Vec3::new(rand_unit(), rand_unit(), rand_unit())) * 2.0 - Vec3::ONE;
         if p.length_squared() >= 1.0 {
             break;
         }
@@ -144,7 +158,7 @@ impl Material for Dielectric {
             1.0
         };
 
-        let scattered = if rand::random_range(0.0..=1.0) < reflect_prob {
+        let scattered = if rand_unit() < reflect_prob {
             Ray::new(hit.p, reflected)
         } else {
             Ray::new(hit.p, refracted)
@@ -483,50 +497,42 @@ impl World {
         let mut spheres = vec![];
 
         for _ in 0..spheres_count {
-            let material_rand = rand::random_range(0.0..=1.0);
+            let material_rand = rand_unit();
             let material: Box<dyn Material> = if material_rand < 0.33 {
                 Box::new(Metal::new(
-                    vec3(
-                        rand::random_range(0.0..=1.0),
-                        rand::random_range(0.0..=1.0),
-                        rand::random_range(0.0..=1.0),
-                    ),
-                    rand::random_range(0.0..=1.0),
+                    vec3(rand_unit(), rand_unit(), rand_unit()),
+                    rand_unit(),
                 ))
             } else if material_rand < 0.66 {
-                Box::new(Lambertian::new(vec3(
-                    rand::random_range(0.0..=1.0),
-                    rand::random_range(0.0..=1.0),
-                    rand::random_range(0.0..=1.0),
-                )))
+                Box::new(Lambertian::new(vec3(rand_unit(), rand_unit(), rand_unit())))
             } else {
-                Box::new(Dielectric::new(rand::random_range(0.0..=1.0) + 1.0))
+                Box::new(Dielectric::new(rand_unit() + 1.0))
             };
 
-            let shape_rand = rand::random_range(0.0..=1.0);
+            let shape_rand = rand_unit();
             let shape: Box<dyn Hitable> = if shape_rand > 0.5 {
                 Box::new(Sphere::new(
                     vec3(
-                        rand::random_range(min_x..=max_x),
+                        rand_min_max(min_x, max_x),
                         y_level,
-                        rand::random_range(min_z..=max_z),
+                        rand_min_max(min_z, max_z),
                     ),
-                    rand::random_range(0.1..=4.0),
+                    rand_min_max(0.1, 0.4),
                     material.into(),
                 ))
             } else {
                 Box::new(Cube::new(
                     vec3(
-                        rand::random_range(min_x..=max_x),
+                        rand_min_max(min_x, max_x),
                         y_level,
-                        rand::random_range(min_z..=max_z),
+                        rand_min_max(min_z, max_z),
                     ),
-                    rand::random_range(0.2..=8.0),
+                    rand_min_max(0.2, 8.0),
                     Quat::from_euler(
                         EulerRot::XYZ,
-                        rand::random_range(0.0..=2.0 * PI),
-                        rand::random_range(0.0..=2.0 * PI),
-                        rand::random_range(0.0..=2.0 * PI),
+                        rand_min_max(0.0, 2.0 * PI),
+                        rand_min_max(0.0, 2.0 * PI),
+                        rand_min_max(0.0, 2.0 * PI),
                     ),
                     material.into(),
                 ))
@@ -676,4 +682,82 @@ pub fn color(r: &Ray, world: &World, depth: usize, render_mode: RenderMode) -> V
     let (attenuation, scattered) = scatter_res.unwrap();
 
     color(&scattered, world, depth + 1, render_mode) * attenuation
+}
+
+struct Game {
+    world: World,
+    render_params: RenderParams,
+}
+
+impl Game {
+    pub fn new() -> Game {
+        Self {
+            world: World::make_plane_default(),
+            render_params: RenderParams::default(),
+        }
+    }
+
+    pub fn move_camera_up(&mut self, step: f32) {
+        let transform = &mut self.world.camera.transform;
+        transform.translation += transform.matrix3.y_axis.normalize() * step;
+    }
+
+    #[inline]
+    pub fn move_camera_down(&mut self, step: f32) {
+        self.move_camera_up(-step);
+    }
+
+    pub fn move_camera_left(&mut self, step: f32) {
+        let transform = &mut self.world.camera.transform;
+        transform.translation += transform.matrix3.x_axis.normalize() * -step;
+    }
+
+    #[inline]
+    pub fn move_camera_right(&mut self, step: f32) {
+        self.move_camera_left(-step);
+    }
+
+    pub fn move_camera_forward(&mut self, step: f32) {
+        let transform = &mut self.world.camera.transform;
+        transform.translation += transform.matrix3.z_axis.normalize() * -step;
+    }
+
+    #[inline]
+    pub fn move_camera_backward(&mut self, step: f32) {
+        self.move_camera_forward(-step);
+    }
+
+    pub fn rotate_camera(&mut self, pitch: f32, yaw: f32) {
+        self.rotate_camera_pitch(pitch);
+        self.rotate_camera_yaw(yaw);
+    }
+
+    fn rotate_camera_pitch(&mut self, pitch: f32) {
+        // rotation around local camera's X
+        let m = &mut self.world.camera.transform.matrix3;
+
+        let (s, c) = pitch.sin_cos();
+
+        m.y_axis.x = c * m.y_axis.x + s * m.z_axis.x;
+        m.y_axis.y = c * m.y_axis.y + s * m.z_axis.y;
+        m.y_axis.z = c * m.y_axis.z + s * m.z_axis.z;
+
+        m.z_axis.x = c * m.z_axis.x + s * m.y_axis.x;
+        m.z_axis.y = c * m.z_axis.y + s * m.y_axis.y;
+        m.z_axis.z = c * m.z_axis.z + s * m.y_axis.z;
+    }
+
+    fn rotate_camera_yaw(&mut self, yaw: f32) {
+        // rotation around world's Y
+        let rot = Mat3A::from_axis_angle(vec3(0.0, 1.0, 0.0), yaw);
+        self.world.camera.transform.matrix3 *= rot;
+    }
+
+    pub fn change_camera_fov(&mut self, step: f32) {
+        self.world.camera.focus += step;
+    }
+
+    pub fn render_frame(&self) -> String {
+        self.world.render_frame(&self.render_params)
+    }
 }
