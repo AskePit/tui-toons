@@ -510,14 +510,14 @@ impl World {
             };
 
             let shape_rand = rand_unit();
-            let shape: Box<dyn Hitable> = if shape_rand > 0.5 {
+            let shape: Box<dyn Hitable> = if shape_rand < 0.5 {
                 Box::new(Sphere::new(
                     vec3(
                         rand_min_max(min_x, max_x),
                         y_level,
                         rand_min_max(min_z, max_z),
                     ),
-                    rand_min_max(0.1, 0.4),
+                    rand_min_max(0.1, 4.0),
                     material.into(),
                 ))
             } else {
@@ -668,7 +668,7 @@ pub fn color(r: &Ray, world: &World, depth: usize, render_mode: RenderMode) -> V
 
     // render_mode == RenderMode::Materials
 
-    const REFLECTIONS_COUNT: usize = 3;
+    const REFLECTIONS_COUNT: usize = 5;
 
     if depth >= REFLECTIONS_COUNT {
         return ambient_color(r);
@@ -684,17 +684,23 @@ pub fn color(r: &Ray, world: &World, depth: usize, render_mode: RenderMode) -> V
     color(&scattered, world, depth + 1, render_mode) * attenuation
 }
 
-struct Game {
+pub struct Game {
     world: World,
     render_params: RenderParams,
 }
 
-impl Game {
-    pub fn new() -> Game {
+impl Default for Game {
+    fn default() -> Self {
         Self {
             world: World::make_plane_default(),
             render_params: RenderParams::default(),
         }
+    }
+}
+
+impl Game {
+    pub fn new() -> Game {
+        Self::default()
     }
 
     pub fn move_camera_up(&mut self, step: f32) {
@@ -733,18 +739,29 @@ impl Game {
     }
 
     fn rotate_camera_pitch(&mut self, pitch: f32) {
-        // rotation around local camera's X
-        let m = &mut self.world.camera.transform.matrix3;
-
-        let (s, c) = pitch.sin_cos();
-
-        m.y_axis.x = c * m.y_axis.x + s * m.z_axis.x;
-        m.y_axis.y = c * m.y_axis.y + s * m.z_axis.y;
-        m.y_axis.z = c * m.y_axis.z + s * m.z_axis.z;
-
-        m.z_axis.x = c * m.z_axis.x + s * m.y_axis.x;
-        m.z_axis.y = c * m.z_axis.y + s * m.y_axis.y;
-        m.z_axis.z = c * m.z_axis.z + s * m.y_axis.z;
+        // rotation around world's X
+        let rot = Mat3A::from_axis_angle(vec3(1.0, 0.0, 0.0), pitch);
+        self.world.camera.transform.matrix3 *= rot;
+        // // rotation around local camera's X
+        // let m = &mut self.world.camera.transform.matrix3;
+        //
+        // let (s, c) = pitch.sin_cos();
+        //
+        // let yx = m.y_axis.x;
+        // let yy = m.y_axis.y;
+        // let yz = m.y_axis.z;
+        //
+        // let zx = m.z_axis.x;
+        // let zy = m.z_axis.y;
+        // let zz = m.z_axis.z;
+        //
+        // m.y_axis.x = c * yx + s * zx;
+        // m.y_axis.y = c * yy + s * zy;
+        // m.y_axis.z = c * yz + s * zz;
+        //
+        // m.z_axis.x = c * zx + s * yx;
+        // m.z_axis.y = c * zy + s * yy;
+        // m.z_axis.z = c * zz + s * yz;
     }
 
     fn rotate_camera_yaw(&mut self, yaw: f32) {

@@ -1,8 +1,8 @@
-use raytracer_backend::{RenderParams, World};
+use raytracer_backend::Game;
 
 fn main() {
-    let world: World = World::make_plane_default();
-    let frame = world.render_frame(&RenderParams::default());
+    let game = Game::new();
+    let frame = game.render_frame();
 
     println!("{}", frame);
 }
