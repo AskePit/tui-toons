@@ -645,7 +645,7 @@ pub fn color(r: &Ray, world: &World, depth: usize, render_mode: RenderMode) -> V
 
     // render_mode == RenderMode::Materials
 
-    const REFLECTIONS_COUNT: usize = 5;
+    const REFLECTIONS_COUNT: usize = 3;
 
     if depth >= REFLECTIONS_COUNT {
         return ambient_color(r);
