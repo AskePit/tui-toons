@@ -11,7 +11,7 @@ function render() {
 const MOUSE_SENSITIVITY = 0.01
 const WHEEL_SENSITIVITY = 0.001
 const KEYBOARD_SENSITIVITY = 0.2
-const KEY_COOLDOWN_MS = 0
+const KEY_COOLDOWN_MS = 1
 
 let lastPressTime = Date.now()
 

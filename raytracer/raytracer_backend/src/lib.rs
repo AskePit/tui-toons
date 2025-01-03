@@ -3,7 +3,7 @@
 mod wasm_layer;
 
 use getrandom::getrandom;
-use glam::{vec3, Affine3A, EulerRot, Mat3A, Quat, Vec3};
+use glam::{vec3a, Affine3A, EulerRot, Mat3A, Quat, Vec3, Vec3A};
 use std::cmp::PartialEq;
 use std::f32::consts::PI;
 use std::fmt::Debug;
@@ -12,29 +12,29 @@ use std::sync::Arc;
 #[derive(Clone, Debug)]
 pub struct HitRecord {
     pub t: f32,
-    pub p: Vec3,
-    pub normal: Vec3,
+    pub p: Vec3A,
+    pub normal: Vec3A,
     pub material: Arc<dyn Material>,
 }
 
 #[derive(Copy, Clone, Debug)]
 pub struct Ray {
-    origin: Vec3,
-    direction: Vec3,
+    origin: Vec3A,
+    direction: Vec3A,
 }
 
 impl Ray {
-    fn new(origin: Vec3, direction: Vec3) -> Self {
+    fn new(origin: Vec3A, direction: Vec3A) -> Self {
         Ray { origin, direction }
     }
 
-    fn point_at(&self, t: f32) -> Vec3 {
+    fn point_at(&self, t: f32) -> Vec3A {
         self.origin + t * self.direction
     }
 }
 
 pub trait Material: Debug {
-    fn scatter(&self, _in_ray: &Ray, _hit: &HitRecord) -> Option<(Vec3, Ray)> {
+    fn scatter(&self, _in_ray: &Ray, _hit: &HitRecord) -> Option<(Vec3A, Ray)> {
         None
     }
 }
@@ -55,12 +55,12 @@ fn rand_min_max(min: f32, max: f32) -> f32 {
     min + unit * (max - min)
 }
 
-// return Vec3
-fn random_in_unit_sphere() -> Vec3 {
+// return Vec3A
+fn random_in_unit_sphere() -> Vec3A {
     let mut p;
 
     loop {
-        p = (Vec3::new(rand_unit(), rand_unit(), rand_unit())) * 2.0 - Vec3::ONE;
+        p = (Vec3A::new(rand_unit(), rand_unit(), rand_unit())) * 2.0 - Vec3A::ONE;
         if p.length_squared() >= 1.0 {
             break;
         }
@@ -71,17 +71,17 @@ fn random_in_unit_sphere() -> Vec3 {
 
 #[derive(Clone, Debug)]
 pub struct Lambertian {
-    albedo: Vec3,
+    albedo: Vec3A,
 }
 
 impl Lambertian {
-    pub fn new(albedo: Vec3) -> Self {
+    pub fn new(albedo: Vec3A) -> Self {
         Lambertian { albedo }
     }
 }
 
 impl Material for Lambertian {
-    fn scatter(&self, _in_ray: &Ray, hit: &HitRecord) -> Option<(Vec3, Ray)> {
+    fn scatter(&self, _in_ray: &Ray, hit: &HitRecord) -> Option<(Vec3A, Ray)> {
         let target = hit.p + hit.normal + random_in_unit_sphere();
         let scattered = Ray::new(hit.p, target - hit.p);
 
@@ -91,12 +91,12 @@ impl Material for Lambertian {
 
 #[derive(Clone, Debug)]
 pub struct Metal {
-    albedo: Vec3,
+    albedo: Vec3A,
     fuzz: f32,
 }
 
 impl Metal {
-    pub fn new(albedo: Vec3, fuzz: f32) -> Self {
+    pub fn new(albedo: Vec3A, fuzz: f32) -> Self {
         Metal {
             albedo,
             fuzz: if fuzz < 1.0 { fuzz } else { 1.0 },
@@ -105,7 +105,7 @@ impl Metal {
 }
 
 impl Material for Metal {
-    fn scatter(&self, in_ray: &Ray, hit: &HitRecord) -> Option<(Vec3, Ray)> {
+    fn scatter(&self, in_ray: &Ray, hit: &HitRecord) -> Option<(Vec3A, Ray)> {
         let reflected = in_ray.direction.normalize().reflect(hit.normal);
         let scattered = Ray::new(hit.p, reflected + self.fuzz * random_in_unit_sphere());
         if scattered.direction.dot(hit.normal) < 0.0 {
@@ -134,7 +134,7 @@ impl Dielectric {
 }
 
 impl Material for Dielectric {
-    fn scatter(&self, in_ray: &Ray, hit: &HitRecord) -> Option<(Vec3, Ray)> {
+    fn scatter(&self, in_ray: &Ray, hit: &HitRecord) -> Option<(Vec3A, Ray)> {
         let outward_normal;
         let ni_over_nt;
         let reflected = in_ray.direction.reflect(hit.normal);
@@ -152,7 +152,7 @@ impl Material for Dielectric {
         }
 
         let refracted = in_ray.direction.refract(outward_normal, ni_over_nt);
-        let reflect_prob = if refracted != Vec3::ZERO {
+        let reflect_prob = if refracted != Vec3A::ZERO {
             schlick(cosine, self.refraction_index)
         } else {
             1.0
@@ -164,7 +164,7 @@ impl Material for Dielectric {
             Ray::new(hit.p, refracted)
         };
 
-        Some((Vec3::ONE, scattered))
+        Some((Vec3A::ONE, scattered))
     }
 }
 
@@ -178,13 +178,13 @@ const ORBIT_DT: usize = 30; // ms
 
 #[derive(Clone, Debug)]
 pub struct Sphere {
-    center: Vec3,
+    center: Vec3A,
     radius: f32,
     material: Arc<dyn Material>,
 }
 
 impl Sphere {
-    pub fn new(center: Vec3, radius: f32, material: Arc<dyn Material>) -> Self {
+    pub fn new(center: Vec3A, radius: f32, material: Arc<dyn Material>) -> Self {
         Sphere {
             center,
             radius,
@@ -227,13 +227,13 @@ impl Hitable for Sphere {
 
 #[derive(Clone, Debug)]
 pub struct Plane {
-    point: Vec3,
-    normal: Vec3,
+    point: Vec3A,
+    normal: Vec3A,
     material: Arc<dyn Material>,
 }
 
 impl Plane {
-    fn new(point: Vec3, normal: Vec3, material: Arc<dyn Material>) -> Self {
+    fn new(point: Vec3A, normal: Vec3A, material: Arc<dyn Material>) -> Self {
         Plane {
             point,
             normal,
@@ -266,7 +266,7 @@ impl Hitable for Plane {
 
 #[derive(Clone, Debug)]
 pub struct Cube {
-    center: Vec3,
+    center: Vec3A,
     size: f32,
     half: f32,
     rotation: Quat,
@@ -289,7 +289,7 @@ const Z: usize = 2;
 const CUBE_IGNORED_BOUNDS: [usize; 6] = [Y, Y, Z, Z, X, X];
 
 impl Cube {
-    fn new(center: Vec3, size: f32, rotation: Quat, material: Arc<dyn Material>) -> Self {
+    fn new(center: Vec3A, size: f32, rotation: Quat, material: Arc<dyn Material>) -> Self {
         let half = size / 2.0;
 
         Self {
@@ -299,12 +299,12 @@ impl Cube {
             rotation,
             inverse_rotation: rotation.inverse(),
             planes: [
-                Plane::new(Vec3::Y * half, Vec3::Y, material.clone()),
-                Plane::new(Vec3::NEG_Y * half, Vec3::NEG_Y, material.clone()),
-                Plane::new(Vec3::Z * half, Vec3::Z, material.clone()),
-                Plane::new(Vec3::NEG_Z * half, Vec3::NEG_Z, material.clone()),
-                Plane::new(Vec3::NEG_X * half, Vec3::NEG_X, material.clone()),
-                Plane::new(Vec3::X * half, Vec3::X, material.clone()),
+                Plane::new(Vec3A::Y * half, Vec3A::Y, material.clone()),
+                Plane::new(Vec3A::NEG_Y * half, Vec3A::NEG_Y, material.clone()),
+                Plane::new(Vec3A::Z * half, Vec3A::Z, material.clone()),
+                Plane::new(Vec3A::NEG_Z * half, Vec3A::NEG_Z, material.clone()),
+                Plane::new(Vec3A::NEG_X * half, Vec3A::NEG_X, material.clone()),
+                Plane::new(Vec3A::X * half, Vec3A::X, material.clone()),
             ],
             material,
         }
@@ -314,8 +314,8 @@ impl Cube {
 impl Hitable for Cube {
     fn hit(&self, ray: &Ray, t_min: f32, t_max: f32) -> Option<HitRecord> {
         let local_ray = Ray::new(
-            self.inverse_rotation.mul_vec3(ray.origin - self.center),
-            self.inverse_rotation.mul_vec3(ray.direction),
+            self.inverse_rotation.mul_vec3a(ray.origin - self.center),
+            self.inverse_rotation.mul_vec3a(ray.direction),
         );
 
         let mut rec = None;
@@ -347,8 +347,8 @@ impl Hitable for Cube {
         }
 
         if let Some(ref mut rec) = &mut rec {
-            rec.p = self.rotation.mul_vec3(rec.p) + self.center;
-            rec.normal = self.rotation.mul_vec3(rec.normal).normalize();
+            rec.p = self.rotation.mul_vec3a(rec.p) + self.center;
+            rec.normal = self.rotation.mul_vec3a(rec.normal).normalize();
         }
 
         rec
@@ -398,14 +398,14 @@ impl Camera {
     }
 
     pub fn get_ray(&self, u: f32, v: f32) -> Ray {
-        let direction = vec3(
+        let direction = vec3a(
             u * self.viewport_width - self.viewport_width / 2.0,
             v * self.viewport_height - self.viewport_height / 2.0,
             self.focus,
         );
         Ray::new(
-            self.transform.transform_point3(Vec3::ZERO),
-            self.transform.transform_vector3(direction),
+            self.transform.transform_point3a(Vec3A::ZERO),
+            self.transform.transform_vector3a(direction),
         )
     }
 }
@@ -421,17 +421,17 @@ impl Default for Camera {
     }
 }
 
-fn ambient_color(r: &Ray) -> Vec3 {
+fn ambient_color(r: &Ray) -> Vec3A {
     let unit_direction = r.direction.normalize();
     let t = 0.5 * (unit_direction.y + 1.0);
     const BACKGROUND_LIGHT: f32 = 1.0;
     const BACKGROUND_DARK: f32 = 0.0;
-    Vec3::splat(BACKGROUND_LIGHT) * (1.0 - t) + Vec3::splat(BACKGROUND_DARK) * t
+    Vec3A::splat(BACKGROUND_LIGHT) * (1.0 - t) + Vec3A::splat(BACKGROUND_DARK) * t
 }
 
-fn fake_ambient_color() -> Vec3 {
+fn fake_ambient_color() -> Vec3A {
     const BACKGROUND_BRIGHTNESS: f32 = 0.0;
-    Vec3::splat(BACKGROUND_BRIGHTNESS)
+    Vec3A::splat(BACKGROUND_BRIGHTNESS)
 }
 
 pub struct RenderParams {
@@ -477,11 +477,15 @@ impl World {
             let material_rand = rand_unit();
             let material: Box<dyn Material> = if material_rand < 0.33 {
                 Box::new(Metal::new(
-                    vec3(rand_unit(), rand_unit(), rand_unit()),
+                    vec3a(rand_unit(), rand_unit(), rand_unit()),
                     rand_unit(),
                 ))
             } else if material_rand < 0.66 {
-                Box::new(Lambertian::new(vec3(rand_unit(), rand_unit(), rand_unit())))
+                Box::new(Lambertian::new(vec3a(
+                    rand_unit(),
+                    rand_unit(),
+                    rand_unit(),
+                )))
             } else {
                 Box::new(Dielectric::new(rand_unit() + 1.0))
             };
@@ -489,7 +493,7 @@ impl World {
             let shape_rand = rand_unit();
             let shape: Box<dyn Hitable> = if shape_rand < 0.5 {
                 Box::new(Sphere::new(
-                    vec3(
+                    vec3a(
                         rand_min_max(min_x, max_x),
                         y_level,
                         rand_min_max(min_z, max_z),
@@ -499,7 +503,7 @@ impl World {
                 ))
             } else {
                 Box::new(Cube::new(
-                    vec3(
+                    vec3a(
                         rand_min_max(min_x, max_x),
                         y_level,
                         rand_min_max(min_z, max_z),
@@ -529,19 +533,19 @@ impl World {
             camera: Camera::new(),
             objects: HitablesList::new(vec![
                 Box::new(Sphere::new(
-                    vec3(-1.0, -0.6, -3.0),
+                    vec3a(-1.0, -0.6, -3.0),
                     1.5,
-                    Arc::new(Lambertian::new(vec3(0.4, 0.4, 0.4))),
+                    Arc::new(Lambertian::new(vec3a(0.4, 0.4, 0.4))),
                 )),
                 Box::new(Sphere::new(
-                    vec3(0.0, 0.0, -1.5),
+                    vec3a(0.0, 0.0, -1.5),
                     0.7,
-                    Arc::new(Metal::new(vec3(1.0, 0.6, 0.6), 0.2)),
+                    Arc::new(Metal::new(vec3a(1.0, 0.6, 0.6), 0.2)),
                 )),
                 Box::new(Sphere::new(
-                    vec3(0.3, 0.3, -0.7),
+                    vec3a(0.3, 0.3, -0.7),
                     0.18,
-                    Arc::new(Metal::new(vec3(0.8, 0.8, 0.8), 0.1)),
+                    Arc::new(Metal::new(vec3a(0.8, 0.8, 0.8), 0.1)),
                 )),
             ]),
         }
@@ -564,7 +568,7 @@ impl World {
             for col in 0..params.width {
                 // NOTE: Too expensive!
                 //
-                // let c = new Vec3(0, 0, 0)
+                // let c = new Vec3A(0, 0, 0)
                 // const NS = 10
                 // for(let s = 0; s<NS; ++s) {
                 //     let u = (col + Math.random()) / width
@@ -581,7 +585,7 @@ impl World {
                 let mut c = color(&ray, self, 0, params.render_mode);
 
                 if params.render_mode != RenderMode::Normals {
-                    c = vec3(c.x.sqrt(), c.y.sqrt(), c.z.sqrt());
+                    c = vec3a(c.x.sqrt(), c.y.sqrt(), c.z.sqrt());
                 }
 
                 clamp_color(&mut c);
@@ -617,13 +621,13 @@ pub enum RenderMode {
     Materials,
 }
 
-pub fn clamp_color(c: &mut Vec3) {
+pub fn clamp_color(c: &mut Vec3A) {
     c.x = c.x.clamp(0.0, 1.0);
     c.y = c.y.clamp(0.0, 1.0);
     c.z = c.z.clamp(0.0, 1.0);
 }
 
-pub fn color(r: &Ray, world: &World, depth: usize, render_mode: RenderMode) -> Vec3 {
+pub fn color(r: &Ray, world: &World, depth: usize, render_mode: RenderMode) -> Vec3A {
     let hit = world.hit(r, 0.001, f32::MAX);
 
     if hit.is_none() {
@@ -640,7 +644,7 @@ pub fn color(r: &Ray, world: &World, depth: usize, render_mode: RenderMode) -> V
     let hit = hit.unwrap();
 
     if render_mode == RenderMode::Normals {
-        return vec3(hit.normal.x + 1.0, hit.normal.y + 1.0, hit.normal.z + 1.0) * 0.5;
+        return vec3a(hit.normal.x + 1.0, hit.normal.y + 1.0, hit.normal.z + 1.0) * 0.5;
     }
 
     // render_mode == RenderMode::Materials
@@ -717,13 +721,13 @@ impl Game {
 
     fn rotate_camera_pitch(&mut self, pitch: f32) {
         // rotation around world's X
-        let rot = Mat3A::from_axis_angle(vec3(1.0, 0.0, 0.0), pitch);
+        let rot = Mat3A::from_axis_angle(Vec3::X, pitch);
         self.world.camera.transform.matrix3 *= rot;
     }
 
     fn rotate_camera_yaw(&mut self, yaw: f32) {
         // rotation around world's Y
-        let rot = Mat3A::from_axis_angle(vec3(0.0, 1.0, 0.0), yaw);
+        let rot = Mat3A::from_axis_angle(Vec3::Y, yaw);
         self.world.camera.transform.matrix3 *= rot;
     }
 
