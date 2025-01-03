@@ -201,22 +201,13 @@ impl Hitable for Sphere {
         let c = oc.dot(oc) - self.radius * self.radius;
         let d = b * b - 4.0 * a * c;
 
-        if d > 0.0 {
-            let mut temp = (-b - d.sqrt()) / a;
-            if temp < t_max && temp > t_min {
-                let p = ray.point_at(temp);
-                let normal = (p - self.center) / self.radius;
-                let material = self.material.clone();
+        if d <= 0.0 {
+            return None;
+        }
 
-                return Some(HitRecord {
-                    p,
-                    t: temp,
-                    normal,
-                    material,
-                });
-            }
+        for sign in [-1.0, 1.0].into_iter() {
+            let temp = (-b + sign * d.sqrt()) / a;
 
-            temp = (-b + d.sqrt()) / a;
             if temp < t_max && temp > t_min {
                 let p = ray.point_at(temp);
                 let normal = (p - self.center) / self.radius;
@@ -230,7 +221,6 @@ impl Hitable for Sphere {
                 });
             }
         }
-
         None
     }
 }
@@ -285,7 +275,18 @@ pub struct Cube {
     material: Arc<dyn Material>,
 }
 
-const CUBE_IGNORED_BOUNDS: [u8; 6] = [1, 1, 2, 2, 0, 0];
+// Planes order:
+// - up
+// - down
+// - forward
+// - backward
+// - left
+// - right
+
+const X: usize = 0;
+const Y: usize = 1;
+const Z: usize = 2;
+const CUBE_IGNORED_BOUNDS: [usize; 6] = [Y, Y, Z, Z, X, X];
 
 impl Cube {
     fn new(center: Vec3, size: f32, rotation: Quat, material: Arc<dyn Material>) -> Self {
@@ -298,24 +299,12 @@ impl Cube {
             rotation,
             inverse_rotation: rotation.inverse(),
             planes: [
-                Plane::new(vec3(0.0, half, 0.0), vec3(0.0, 1.0, 0.0), material.clone()),
-                Plane::new(
-                    vec3(0.0, -half, 0.0),
-                    vec3(0.0, -1.0, 0.0),
-                    material.clone(),
-                ),
-                Plane::new(vec3(0.0, 0.0, half), vec3(0.0, 0.0, 1.0), material.clone()),
-                Plane::new(
-                    vec3(0.0, 0.0, -half),
-                    vec3(0.0, 0.0, -1.0),
-                    material.clone(),
-                ),
-                Plane::new(
-                    vec3(-half, 0.0, 0.0),
-                    vec3(-1.0, 0.0, 0.0),
-                    material.clone(),
-                ),
-                Plane::new(vec3(half, 0.0, 0.0), vec3(1.0, 0.0, 0.0), material.clone()),
+                Plane::new(Vec3::Y * half, Vec3::Y, material.clone()),
+                Plane::new(Vec3::NEG_Y * half, Vec3::NEG_Y, material.clone()),
+                Plane::new(Vec3::Z * half, Vec3::Z, material.clone()),
+                Plane::new(Vec3::NEG_Z * half, Vec3::NEG_Z, material.clone()),
+                Plane::new(Vec3::NEG_X * half, Vec3::NEG_X, material.clone()),
+                Plane::new(Vec3::X * half, Vec3::X, material.clone()),
             ],
             material,
         }
@@ -332,7 +321,7 @@ impl Hitable for Cube {
         let mut rec = None;
         let mut closest = t_max;
 
-        for i in 0..6 {
+        for (i, &ignored_bound) in CUBE_IGNORED_BOUNDS.iter().enumerate() {
             let tmp_rec = self.planes[i].hit(&local_ray, t_min, closest);
             if tmp_rec.is_none() {
                 continue;
@@ -340,26 +329,14 @@ impl Hitable for Cube {
             let tmp_rec = tmp_rec.unwrap();
 
             let mut bounds_check = true;
-            for bound in 0..3 {
-                if bound == CUBE_IGNORED_BOUNDS[i] {
+            for bound in X..=Z {
+                if bound == ignored_bound {
                     continue;
                 }
 
-                if bound == 0 {
-                    if tmp_rec.p.x < -self.half || tmp_rec.p.x > self.half {
-                        bounds_check = false;
-                        break;
-                    }
-                } else if bound == 1 {
-                    if tmp_rec.p.y < -self.half || tmp_rec.p.y > self.half {
-                        bounds_check = false;
-                        break;
-                    }
-                } else if bound == 2 {
-                    if tmp_rec.p.z < -self.half || tmp_rec.p.z > self.half {
-                        bounds_check = false;
-                        break;
-                    }
+                if tmp_rec.p[bound] < -self.half || tmp_rec.p[bound] > self.half {
+                    bounds_check = false;
+                    break;
                 }
             }
 
@@ -653,11 +630,11 @@ pub fn color(r: &Ray, world: &World, depth: usize, render_mode: RenderMode) -> V
         // We do not want our ASCII-screen be rubbished by ambient noise, but
         // we do want ambient influence our spheres. So do not show ambient
         // on a hit miss, but make it influence reflections and refractions
-        if depth > 0 {
-            return ambient_color(r);
+        return if depth > 0 {
+            ambient_color(r)
         } else {
-            return fake_ambient_color();
-        }
+            fake_ambient_color()
+        };
     }
 
     let hit = hit.unwrap();
@@ -742,26 +719,6 @@ impl Game {
         // rotation around world's X
         let rot = Mat3A::from_axis_angle(vec3(1.0, 0.0, 0.0), pitch);
         self.world.camera.transform.matrix3 *= rot;
-        // // rotation around local camera's X
-        // let m = &mut self.world.camera.transform.matrix3;
-        //
-        // let (s, c) = pitch.sin_cos();
-        //
-        // let yx = m.y_axis.x;
-        // let yy = m.y_axis.y;
-        // let yz = m.y_axis.z;
-        //
-        // let zx = m.z_axis.x;
-        // let zy = m.z_axis.y;
-        // let zz = m.z_axis.z;
-        //
-        // m.y_axis.x = c * yx + s * zx;
-        // m.y_axis.y = c * yy + s * zy;
-        // m.y_axis.z = c * yz + s * zz;
-        //
-        // m.z_axis.x = c * zx + s * yx;
-        // m.z_axis.y = c * zy + s * yy;
-        // m.z_axis.z = c * zz + s * yz;
     }
 
     fn rotate_camera_yaw(&mut self, yaw: f32) {
