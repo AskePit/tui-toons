@@ -5,7 +5,6 @@ await init(); // Initialize the WASM module
 function render() {
     let frame = render_frame().replaceAll(' ', '&nbsp').replaceAll('\n', '<br>') // Get the rendered frame
     tui.innerHTML = frame
-    //requestAnimationFrame(renderLoop);
 }
 
 const MOUSE_SENSITIVITY = 0.01
