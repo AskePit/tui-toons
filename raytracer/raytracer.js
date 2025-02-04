@@ -433,7 +433,7 @@ class Camera {
     constructor() {
         this.viewportWidth = 4
         this.viewportHeight = 2
-        this.focus = -1
+        this.focus = -4
         this.transform = new Matrix4x4()
     }
 
@@ -498,21 +498,38 @@ function color(r, world, depth) {
     return color(scattered, world, depth + 1).mulVec(attenuation)
 }
 
+// return Material
+function getRandomMaterial()
+{
+    const materialRand = Math.random()
+    let material
+
+    // if (materialRand < 0.33) {
+    //     material = new Metal(new Vec3(Math.random(), Math.random(), Math.random()), Math.random())
+    // } else if (materialRand < 0.66) {
+    //     material = new Lambertian(new Vec3(Math.random(), Math.random(), Math.random()))
+    // } else {
+    //     material = new Dielectric(Math.random() + 1.0)
+    // }
+
+    // Dielectric is not really pixel-art friendly and also very heavy in terms of computations
+
+    if (materialRand < 0.5) {
+        material = new Metal(new Vec3(Math.random(), Math.random(), Math.random()), Math.random())
+    } else {
+        material = new Lambertian(new Vec3(Math.random(), Math.random(), Math.random()))
+    }
+
+    return material
+}
+
 // return array[Sphere]
 function generateGlobe(spheresCount, yLevel, minX, maxX, minZ, maxZ)
 {
     const spheres = []
 
     for(let i = 0; i < spheresCount; ++i) {
-        const materialRand = Math.random()
-        let material
-        if (materialRand < 0.33) {
-            material = new Metal(new Vec3(Math.random(), Math.random(), Math.random()), Math.random())
-        } else if (materialRand < 0.66) {
-            material = new Lambertian(new Vec3(Math.random(), Math.random(), Math.random()))
-        } else {
-            material = new Dielectric(Math.random() + 1.0)
-        }
+        const material = getRandomMaterial()
 
         const shapeRand = Math.random()
         let shape
