@@ -115,8 +115,10 @@ setInterval(() => {
 }, 600);
 
 function drawPixel(char, x, y, r, g, b) {
-    canvas.strokeStyle = `rgb(${r}, ${g}, ${b})`
-    canvas.strokeText(char, x * PIXEL_SIZE, y * PIXEL_SIZE); // Adjust based on font size
+    canvas.fillStyle = `rgb(${r}, ${g}, ${b})`
+    canvas.fillText(char, x * PIXEL_SIZE, y * PIXEL_SIZE); // Adjust based on font size
+    // canvas.strokeStyle = `rgb(${r}, ${g}, ${b})`
+    // canvas.strokeText(char, x * PIXEL_SIZE, y * PIXEL_SIZE); // Adjust based on font size
 }
 
 // const THEMES = [

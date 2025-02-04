@@ -566,13 +566,11 @@ const world = new HitableList([
 ])
 
 const camera = new Camera()
-// let builder = new StringBuilder()
 
 let needsRender = false
 
 function render() {
     canvas.reset()
-    // builder.clear()
 
     for(let row = HEIGHT-1; row>=0; --row) {
         for(let col = 0; col<WIDTH; ++col) {
@@ -614,20 +612,14 @@ function render() {
             // const lightAvg = 29.9*c.x + 58.7*c.y + 11.4*c.z
             const lightAvg = (r + g + b) / 3
 
-            // builder.append(getGraySymbolHtml(INVERT_COLORS ? 100-lightAvg : lightAvg))
-            // builder.append(getGraySymbolHtmlColored(INVERT_COLORS ? 100-lightAvg : lightAvg, colorR, colorG, colorB))
-
             drawPixel(getGraySymbol(INVERT_COLORS ? 100-lightAvg : lightAvg), col, HEIGHT-1-row, colorR, colorG, colorB)
         }
-        // builder.append('<br>')
     }
-    
-    // tui.innerHTML = builder.toString()
 }
 
 const MOUSE_SENSITIVITY = 0.01
 const WHEEL_SENSITIVITY = 0.001
-const KEYBOARD_SENSITIVITY = 0.5
+const KEYBOARD_SENSITIVITY = 1
 const KEY_COOLDOWN_MS = 1
 
 let lastPressTime = Date.now()
