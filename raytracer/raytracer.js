@@ -207,7 +207,7 @@ class Sphere extends Hitable {
 
         const localPoint = new Vec3(localX, localY, localZ)
         this.center = this.orbitTransform.applyToPoint(localPoint)
-        render()
+        needsRender = true
     }
 
     setRandomOrbitParams() {
@@ -568,6 +568,8 @@ const world = new HitableList([
 const camera = new Camera()
 let builder = new StringBuilder()
 
+let needsRender = false
+
 function render() {
     builder.clear()
 
@@ -623,7 +625,7 @@ function render() {
 const MOUSE_SENSITIVITY = 0.01
 const WHEEL_SENSITIVITY = 0.001
 const KEYBOARD_SENSITIVITY = 1
-const KEY_COOLDOWN_MS = 100
+const KEY_COOLDOWN_MS = 1
 
 let lastPressTime = Date.now()
 
@@ -652,13 +654,13 @@ document.onkeydown = (el) => {
         camera.transform.moveUp(KEYBOARD_SENSITIVITY)
     }
 
-    render()
+    needsRender = true
     lastPressTime = time
 }
 
 tui.onwheel = (el) => {
     camera.focus += el.deltaY * WHEEL_SENSITIVITY
-    render()
+    needsRender = true
 }
 
 let rotateCamera = false
@@ -677,7 +679,19 @@ tui.onmousemove = (el) => {
     }
     camera.transform.rotateAroundWorldAxis(UP, el.movementX * MOUSE_SENSITIVITY)
     camera.transform.rotateX(-el.movementY * MOUSE_SENSITIVITY)
-    render()
+    needsRender = true
 }
 
-render()
+needsRender = true
+
+// Render loop using requestAnimationFrame
+function renderLoop() {
+    if (needsRender) {
+        render() // Your drawing function
+        needsRender = false
+    }
+    requestAnimationFrame(renderLoop)
+}
+
+// Start the loop
+renderLoop();
