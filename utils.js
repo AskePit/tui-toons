@@ -6,6 +6,7 @@ const CURSOR_SYMBOL = '█'
 
 let tui = document.getElementById("tui")
 let tuiHead = document.getElementById("tui-head")
+const canvas = tui.getContext("2d", { alpha: false });
 
 function getRandomInt(min, max) {
     min = Math.ceil(min);
@@ -88,12 +89,20 @@ function computeSizes(char) {
         tui.style.fontSize = (parseFloat(tui.style.fontSize) - STEP) + 'px'
     }
 
-    tui.style.width = (width * WIDTH + 10) + 'px'
+    tui.width = width * WIDTH + 10
     tuiHead.style.width = (width * WIDTH + 10) + 'px'
-    tui.style.height = (height * HEIGHT + 10) + 'px'
+    tui.height = height * HEIGHT + 10
+
+    const fontSize = parseFloat(tui.style.fontSize)
+    console.log(fontSize)
+    canvas.font = `${tui.style.fontSize} ${tuiStyle.fontFamily}`
+    console.log(canvas.font)
+    canvas.textBaseline = 'top';
+
+    return [height, fontSize]
 }
 
-computeSizes(FILL_SYMBOL)
+const [PIXEL_SIZE, FONT_SIZE] = computeSizes(FILL_SYMBOL)
 
 cursorState = false
 setInterval(() => {
@@ -104,6 +113,11 @@ setInterval(() => {
     }
     cursorState = !cursorState
 }, 600);
+
+function drawPixel(char, x, y, r, g, b) {
+    canvas.strokeStyle = `rgb(${r}, ${g}, ${b})`
+    canvas.strokeText(char, x * PIXEL_SIZE, y * PIXEL_SIZE); // Adjust based on font size
+}
 
 // const THEMES = [
 //     '../theme-cmd.css',
