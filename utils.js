@@ -49,6 +49,11 @@ function getGraySymbolHtml(intensity) {
     return s == ' ' ? '&nbsp;' : s
 }
 
+function getGraySymbolHtmlColored(intensity, r, g, b) {
+    const s = getGraySymbol(intensity)
+    return s == ' ' ? '&nbsp;' : `<span style="color: rgb(${r},${g},${b});">${s}</span>`
+}
+
 function computeSizes(char) {
     var tuiStyle = window.getComputedStyle(tui)
     const height = parseFloat(tuiStyle.lineHeight)

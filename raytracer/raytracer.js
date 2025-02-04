@@ -484,7 +484,7 @@ function color(r, world, depth) {
 
     // RENDER_MODE == MATERIALS
 
-    const REFLECTIONS_COUNT = 3
+    const REFLECTIONS_COUNT = 100
 
     if (depth >= REFLECTIONS_COUNT) {
         return ambientColor(r)
@@ -504,21 +504,21 @@ function getRandomMaterial()
     const materialRand = Math.random()
     let material
 
-    // if (materialRand < 0.33) {
-    //     material = new Metal(new Vec3(Math.random(), Math.random(), Math.random()), Math.random())
-    // } else if (materialRand < 0.66) {
-    //     material = new Lambertian(new Vec3(Math.random(), Math.random(), Math.random()))
-    // } else {
-    //     material = new Dielectric(Math.random() + 1.0)
-    // }
+    if (materialRand < 0.33) {
+        material = new Metal(new Vec3(Math.random(), Math.random(), Math.random()), Math.random())
+    } else if (materialRand < 0.66) {
+        material = new Lambertian(new Vec3(Math.random(), Math.random(), Math.random()))
+    } else {
+        material = new Dielectric(Math.random() + 1.0)
+    }
 
     // Dielectric is not really pixel-art friendly and also very heavy in terms of computations
 
-    if (materialRand < 0.5) {
-        material = new Metal(new Vec3(Math.random(), Math.random(), Math.random()), Math.random())
-    } else {
-        material = new Lambertian(new Vec3(Math.random(), Math.random(), Math.random()))
-    }
+    // if (materialRand < 0.5) {
+    //     material = new Metal(new Vec3(Math.random(), Math.random(), Math.random()), Math.random())
+    // } else {
+    //     material = new Lambertian(new Vec3(Math.random(), Math.random(), Math.random()))
+    // }
 
     return material
 }
@@ -604,10 +604,15 @@ function render() {
             const r = 100*c.x
             const g = 100*c.y
             const b = 100*c.z
-            // const avg = 29.9*c.x + 58.7*c.y + 11.4*c.z
-            const avg = (r + g + b) / 3
 
-            builder.append(getGraySymbolHtml(INVERT_COLORS ? 100-avg : avg))
+            const colorR = 255*c.x
+            const colorG = 255*c.y
+            const colorB = 255*c.z
+            // const lightAvg = 29.9*c.x + 58.7*c.y + 11.4*c.z
+            const lightAvg = (r + g + b) / 3
+
+            // builder.append(getGraySymbolHtml(INVERT_COLORS ? 100-lightAvg : lightAvg))
+            builder.append(getGraySymbolHtmlColored(INVERT_COLORS ? 100-lightAvg : lightAvg, colorR, colorG, colorB))
         }
         builder.append('<br>')
     }
@@ -617,8 +622,8 @@ function render() {
 
 const MOUSE_SENSITIVITY = 0.01
 const WHEEL_SENSITIVITY = 0.001
-const KEYBOARD_SENSITIVITY = 0.2
-const KEY_COOLDOWN_MS = 1
+const KEYBOARD_SENSITIVITY = 1
+const KEY_COOLDOWN_MS = 100
 
 let lastPressTime = Date.now()
 
