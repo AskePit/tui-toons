@@ -426,6 +426,8 @@ class HitableList extends Hitable {
 
 const PERSPECTIVE = 0
 const ORTHOGRAPHIC = 1
+const FISH_EYE = 2
+const EQUIRECTANGULAR = 3
 
 const PROJECTION = ORTHOGRAPHIC
 
@@ -443,12 +445,78 @@ class Camera {
     }
 
     getRay(u, v) {
+        let ray = null
+
+        if (PROJECTION === PERSPECTIVE) {
+            ray = this.#getPerspectiveRay(u, v)
+        } else if (PROJECTION === ORTHOGRAPHIC) {
+            ray = this.#getOrthographicRay(u, v)
+        } else if (PROJECTION === FISH_EYE) {
+            ray = this.#getFisheyeRay(u, v)
+        } else if (PROJECTION === EQUIRECTANGULAR) {
+            ray = this.#getEquirectangularRay(u, v)
+        }
+
+        return this.transform.applyToRay(ray)
+    }
+
+    #getPerspectiveRay(u, v) {
         const x = u*this.viewportWidth - this.viewportWidth/2
         const y = v*this.viewportHeight - this.viewportHeight/2
+        return new Ray(
+            new Vec3(0, 0, 0),
+            new Vec3(x, y, this.focus)
+        )
+    }
 
-        const from = PROJECTION === PERSPECTIVE ? new Vec3(0, 0, 0) : new Vec3(x, y, 0)
-        const to = new Vec3(x, y, this.focus)
-        return this.transform.applyToRay(new Ray(from, to))
+    #getOrthographicRay(u, v) {
+        const x = u*this.viewportWidth - this.viewportWidth/2
+        const y = v*this.viewportHeight - this.viewportHeight/2
+        return new Ray(
+            new Vec3(x, y, 0),
+            new Vec3(x, y, this.focus)
+        )
+    }
+
+    #getFisheyeRay(u, v) { // return Vec3, ray direction
+        const x = u*this.viewportWidth - this.viewportWidth/2
+        const y = v*this.viewportHeight - this.viewportHeight/2
+        // x and y are pixel coordinates relative to the image center
+        const r = Math.sqrt(x*x + y*y)
+        const theta = Math.atan2(y, x) // angle in the image plane
+
+        // Map radial distance to angle (assume max_radius maps to a max angle, e.g., pi/2 for 180° FOV)
+        const maxAngle = Math.PI / 2
+        const phi = (r / this.focus) * maxAngle // ensure r does not exceed max_radius
+
+        // Convert spherical coordinates to Cartesian direction vector
+        const dir = new Vec3()
+        dir.x = Math.sin(phi) * Math.cos(theta)
+        dir.y = Math.sin(phi) * Math.sin(theta)
+        dir.z = Math.cos(phi)
+
+        return new Ray(
+            dir,
+            new Vec3(x, y, this.focus)
+        )
+    }
+
+    #getEquirectangularRay(u, v) {
+        // u in [0,1] corresponds to azimuth angle (0 to 2π)
+        // v in [0,1] corresponds to polar angle (0 to π)
+        const azimuth = u * 2.0 * Math.PI
+        const polar = v * Math.PI
+
+        // Convert spherical coordinates to Cartesian direction
+        const dir = new Vec3()
+        dir.x = Math.sin(polar) * Math.cos(azimuth)
+        dir.y = Math.sin(polar) * Math.sin(azimuth)
+        dir.z = Math.cos(polar)
+
+        return new Ray(
+            new Vec3(0, 0, 0),
+            dir
+        )
     }
 }
 
