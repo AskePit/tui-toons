@@ -424,6 +424,11 @@ class HitableList extends Hitable {
     }
 }
 
+const PERSPECTIVE = 0
+const ORTHOGRAPHIC = 1
+
+const PROJECTION = ORTHOGRAPHIC
+
 class Camera {
     viewportWidth // float
     viewportHeight // float
@@ -438,8 +443,12 @@ class Camera {
     }
 
     getRay(u, v) {
-        const direction = new Vec3(u*this.viewportWidth - this.viewportWidth/2, v*this.viewportHeight - this.viewportHeight/2, this.focus)
-        return this.transform.applyToRay(new Ray(new Vec3(0, 0, 0), direction))
+        const x = u*this.viewportWidth - this.viewportWidth/2
+        const y = v*this.viewportHeight - this.viewportHeight/2
+
+        const from = PROJECTION === PERSPECTIVE ? new Vec3(0, 0, 0) : new Vec3(x, y, 0)
+        const to = new Vec3(x, y, this.focus)
+        return this.transform.applyToRay(new Ray(from, to))
     }
 }
 
