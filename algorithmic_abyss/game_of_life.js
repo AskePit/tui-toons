@@ -1,5 +1,62 @@
 setTuiMode(TuiMode.IMAGE)
 
+class RandomPool {
+    size = 0
+    pool = []
+
+    #shuffle(array) {
+        let currentIndex = array.length;
+      
+        // While there remain elements to shuffle...
+        while (currentIndex != 0) {
+      
+          // Pick a remaining element...
+          let randomIndex = Math.floor(Math.random() * currentIndex);
+          currentIndex--;
+      
+          // And swap it with the current element.
+          [array[currentIndex], array[randomIndex]] = [
+            array[randomIndex], array[currentIndex]];
+        }
+    }
+
+    constructor(size) {
+        this.size = size
+        this.pool = []
+
+        let cachedPool = sessionStorage.getItem('GameOfLifeRandomPool')
+        if (cachedPool) {
+            this.pool = JSON.parse(cachedPool)
+        } else {
+            for (let i = 0; i < size; ++i) {
+                this.pool.push(i)
+            }
+            this.#shuffle(this.pool)
+        }
+    }
+
+    #refill() {
+        this.pool = []
+        for(let i = 0; i<this.size; ++i) {
+            this.pool.push(i)
+        }
+
+        this.#shuffle(this.pool)
+    }
+
+    yield() {
+        if (this.pool.length == 0) {
+            this.#refill()
+        }
+        let y = this.pool[this.pool.length-1]
+        this.pool.length -= 1
+
+        sessionStorage.setItem('GameOfLifeRandomPool', JSON.stringify(this.pool))
+
+        return y
+    }
+}
+
 class Rules {
     birthRule
     survivalRule
@@ -31,7 +88,9 @@ const DEBUG_TEST_RULE = false
 const TEST_RULE = GAME_OF_LIFE
 
 const rulesArray = [LAVA, INEVITABLE_EXPANSION, DIAMOEBA, DAY_AND_NIGHT, AI_CORRUPTION, CRYSTAL_MAZE];
-const randomRulesIndex = Math.floor(Math.random() * rulesArray.length)
+
+const randomPool = new RandomPool(rulesArray.length)
+const randomRulesIndex = randomPool.yield()
 const RULES = DEBUG_TEST_RULE ? TEST_RULE : rulesArray[randomRulesIndex];
 
 if (RULES == TEST_RULE) {
