@@ -1,3 +1,5 @@
+setTuiMode(TuiMode.IMAGE)
+
 class Rules {
     birthRule
     survivalRule

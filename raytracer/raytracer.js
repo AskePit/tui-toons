@@ -1,3 +1,5 @@
+setTuiMode(TuiMode.IMAGE)
+
 class Material {
     // inRay: Ray
     // hit: HitRecord

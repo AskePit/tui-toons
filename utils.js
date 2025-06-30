@@ -54,7 +54,34 @@ function getGraySymbolHtmlColored(intensity, r, g, b) {
     return s == ' ' ? '&nbsp;' : `<span style="color: rgb(${r},${g},${b});">${s}</span>`
 }
 
-function computeSizes(char) {
+const TuiMode = {
+    TEXT: 0,
+    IMAGE: 1,
+}
+
+function setTuiMode(mode) {
+    if (mode === TuiMode.IMAGE) {
+        computeCanvasSizes(FILL_SYMBOL)
+    } else {
+        tui.style.userSelect = 'text';
+        tui.style.lineHeight = 'normal';
+        tui.style.fontSize = '1em';
+        
+        tui.style.boxSizing = 'border-box';
+        tuiHead.style.boxSizing = 'border-box';
+
+        const width = 80;
+        const height = 86;
+        tui.style.width = width + '%';
+        tui.style.height = height + '%';
+        tuiHead.style.width = width + '%';
+        
+        tui.style.textAlign = 'justify';
+        tui.style.padding = '20px 46px';
+    }
+}
+
+function computeCanvasSizes(char) {
     var tuiStyle = window.getComputedStyle(tui)
     const height = parseFloat(tuiStyle.lineHeight)
     let prevWidth = 0
@@ -92,8 +119,6 @@ function computeSizes(char) {
     tuiHead.style.width = (width * WIDTH + 10) + 'px'
     tui.style.height = (height * HEIGHT + 10) + 'px'
 }
-
-computeSizes(FILL_SYMBOL)
 
 cursorState = false
 setInterval(() => {
