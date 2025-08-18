@@ -10,13 +10,9 @@ const WAR_AND_PEACE = {
     url: 'https://api.allorigins.win/raw?url=https://www.fulltextarchive.com/book/war-and-peace/',
     name: 'WarAndPeaceEnCorpus',
 }
-const VORONOI_MANHATTAN_RANDOM = {
-    url: 'https://askepit.github.io/blog/voronoi_manhattan_random/',
-    name: 'VoronoiManhattanRandomEnCorpus',
-}
-const VORONOI_MANHATTAN_RANDOM_RU = {
-    url: 'https://api.allorigins.win/raw?url=https://habr.com/ru/articles/794572/',
-    name: 'VoronoiManhattanRandomRuCorpus',
+const PUNK_RIFF_GENERATOR = {
+    url: 'https://askepit.github.io/blog/punk_riff_generator/',
+    name: 'PunkRiffGeneratorEnCorpus',
 }
 
 function saveLocalDict(key, obj) {
@@ -28,13 +24,15 @@ function loadLocalDict(key) {
     return raw ? JSON.parse(raw) : null;
 }
 
-let CURRENT_CORPUS = PRIDE_AND_PREJUDICE;
+let CURRENT_CORPUS = PUNK_RIFF_GENERATOR;
 
 const cachedCorpus = loadLocalDict(CURRENT_CORPUS.name)
 
+let textLength = 1600;
+
 if (cachedCorpus) {
     Object.assign(markovChain, cachedCorpus);
-    generateLoremIpsum(200);
+    generateLoremIpsum(textLength);
 } else {
     tui.innerText = 'Loading corpus...';
     fetch(CURRENT_CORPUS.url)
@@ -47,7 +45,7 @@ if (cachedCorpus) {
             const data = Array.from(paragraphs).map(p => p.textContent).join(' ');
 
             loadCorpus(data);
-            generateLoremIpsum(200);
+            generateLoremIpsum(textLength);
         })
         .catch(err => console.error('Fetch error:', err));
 }
