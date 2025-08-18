@@ -17,6 +17,7 @@ body {
     line-height: 8px;
     width: auto;
     user-select: none;
+    white-space: pre;
 }
 
 #tui {
