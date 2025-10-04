@@ -748,11 +748,28 @@ tui.onmousedown = (el) => {
     rotateCamera = true
 }
 
+tui.onpointerdown = (el) => {
+    rotateCamera = true
+}
+
 tui.onmouseup = (el) => {
     rotateCamera = false
 }
 
+tui.onpointerup = (el) => {
+    rotateCamera = false
+}
+
 tui.onmousemove = (el) => {
+    if (!rotateCamera) {
+        return
+    }
+    camera.transform.rotateAroundWorldAxis(UP, el.movementX * MOUSE_SENSITIVITY)
+    camera.transform.rotateX(-el.movementY * MOUSE_SENSITIVITY)
+    needsRender = true
+}
+
+tui.onpointermove = (el) => {
     if (!rotateCamera) {
         return
     }
